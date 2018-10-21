@@ -5,17 +5,27 @@ import android.app.IntentService;
 import android.app.Notification;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.Bundle;
 import android.os.Looper;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.widget.Toast;
+import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.*;
 
-public class GPSTracker extends IntentService {
+import java.util.concurrent.Executors;
+
+import static com.google.android.gms.location.LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY;
+
+public class GPSTrackerService extends IntentService implements GoogleApiClient.ConnectionCallbacks {
 
     private static final String TAG = "GPSTracker";
+
+    //TODO(kasian @2018-10-21): what's this for?
+    private static final int PERMISSION_REQUEST_CODE = 1000;
 
     //TODO(kasian @2018-09-26):
     private static final int FOREGROUND_ID = 1338;
@@ -24,12 +34,16 @@ public class GPSTracker extends IntentService {
 
     private static long FASTEST_INTERVAL = 10 * 2000;
 
-    public GPSTracker() {
+    private FusedLocationProviderClient fusedLocationProviderClient;
+
+    public GPSTrackerService() {
         super(TAG);
     }
 
     @Override
     public int onStartCommand(@Nullable Intent intent, int flags, int startId) {
+        Log.i(TAG, "onStartCommand");
+
         Toast.makeText(getApplicationContext(), "Foreground service has been started.", Toast.LENGTH_LONG).show();
         return super.onStartCommand(intent, flags, startId);
     }
@@ -39,8 +53,21 @@ public class GPSTracker extends IntentService {
         super.onCreate();
         Log.i(TAG, "onCreate");
 
+        //initFusedLocationProvider();
+
         initLocationUpdates();
     }
+
+    @NonNull
+    private LocationRequest createLocationRequest() {
+        LocationRequest locationRequest = new LocationRequest();
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        locationRequest.setInterval(UPDATE_INTERVAL);
+        locationRequest.setFastestInterval(FASTEST_INTERVAL);
+        locationRequest.setPriority(PRIORITY_BALANCED_POWER_ACCURACY);
+        return locationRequest;
+    }
+
 
 /*
     private void startListening() {
@@ -59,12 +86,7 @@ public class GPSTracker extends IntentService {
 
 
     private void initLocationUpdates() {
-        LocationRequest mLocationRequest;
-        mLocationRequest = new LocationRequest();
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        mLocationRequest.setInterval(UPDATE_INTERVAL);
-        mLocationRequest.setFastestInterval(FASTEST_INTERVAL);
-
+        LocationRequest mLocationRequest = createLocationRequest();
 /*
         //TODO(kasian @2018-09-30): need?
         // Create LocationSettingsRequest object using location request
@@ -76,8 +98,6 @@ public class GPSTracker extends IntentService {
         SettingsClient settingsClient = LocationServices.getSettingsClient(this);
         settingsClient.checkLocationSettings(locationSettingsRequest);
 */
-
-
         LocationCallback locationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
@@ -85,7 +105,7 @@ public class GPSTracker extends IntentService {
             }
         };
 
-        FusedLocationProviderClient fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
+        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             // TODO: Consider calling
@@ -141,13 +161,23 @@ public class GPSTracker extends IntentService {
     protected void onHandleIntent(@Nullable Intent intent) {
         Log.i(TAG, "onHandleIntent");
 
-        startForeground(FOREGROUND_ID, buildForegroundNotification());
+        //startForeground(FOREGROUND_ID, buildForegroundNotification());
 
-        //Executors.newSingleThreadExecutor().submit(new GPSTrackerThread());
+        Executors.newSingleThreadExecutor().submit(new GPSTrackerThread());
+    }
+
+    @Override
+    public void onConnected(@Nullable Bundle bundle) {
+        Log.i(TAG, "!!!onConnected");
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+        Log.i(TAG, "!!!onConnectionSuspended");
     }
 
     private class GPSTrackerThread implements Runnable {
-        private static final int TIMEOUT = 2000;
+        private static final int TIMEOUT = 15000;
 
         @Override
         public void run() {
