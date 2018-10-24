@@ -18,7 +18,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         //TODO(kasian @2018-09-30): is this a right place?
-        startService();
+        startGpsTrackerService();
     }
 
     @Override
@@ -30,7 +30,7 @@ public class MainActivity extends AppCompatActivity {
         finish();
     }
 
-    private void startService() {
+    private void startGpsTrackerService() {
         Intent service = new Intent(this, GPSTrackerService.class);
         //ContextCompat.startForegroudService(this, service);
         startService(service);
