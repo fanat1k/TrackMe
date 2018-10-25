@@ -28,9 +28,6 @@ import static com.google.android.gms.location.LocationRequest.PRIORITY_BALANCED_
 
 public class GPSTrackerService extends IntentService implements GoogleApiClient.ConnectionCallbacks {
 
-    //TODO(kasian @2018-10-21): what's this for?
-    private static final int PERMISSION_REQUEST_CODE = 1000;
-
     //TODO(kasian @2018-09-26): need when start Service with foreground notification,
     // (trying to encrease quantity of gps requests when app is on backgound)
     private static final int FOREGROUND_ID = 1338;
@@ -89,7 +86,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
 
         LocalDateTime currentDateTime = LocalDateTime.now();
 
-        Log.i(TAG,"scheduleLocationUpdates, currentDateTime=" + currentDateTime);
+        Log.i(TAG, "scheduleLocationUpdates, currentDateTime=" + currentDateTime);
 
         //TODO(romanpe @2018-10-24): set to 24hours
         TimeUnit timeUnit = TimeUnit.MINUTES;
@@ -183,20 +180,13 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     private synchronized void startLocationUpdates() {
         Log.i(TAG, "Start request location updates");
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
 
-            Log.e(TAG, "GPS: permissions denied");
-            return;
+            fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
+        } else {
+            Log.e(TAG, "Location permissions turned off");
         }
-
-        fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
     }
 
     //TODO(romanpe @2018-10-24): synchronized?
@@ -204,40 +194,6 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         Log.i(TAG, "Stop request location updates");
         fusedLocationProviderClient.removeLocationUpdates(locationCallback);
     }
-
-
-/*    @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           String permissions[], int[] grantResults) {
-        switch (requestCode) {
-            case MY_PERMISSIONS_REQUEST_LOCATION: {
-                // If request is cancelled, the result arrays are empty.
-                if (grantResults.length > 0
-                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-
-                    // permission was granted, yay! Do the
-                    // location-related task you need to do.
-                    if (ContextCompat.checkSelfPermission(this,
-                            Manifest.permission.ACCESS_FINE_LOCATION)
-                            == PackageManager.PERMISSION_GRANTED) {
-
-                        mFusedLocationClient.requestLocationUpdates(locationRequest, mLocationCallback, Looper.myLooper());
-                        mGoogleMap.setMyLocationEnabled(true);
-                    }
-
-                } else {
-
-                    // permission denied, boo! Disable the
-                    // functionality that depends on this permission.
-                    Toast.makeText(this, "permission denied", Toast.LENGTH_LONG).show();
-                }
-                return;
-            }
-
-            // other 'case' lines to check for other
-            // permissions this app might request
-        }
-    }*/
 
     @Override
     protected void onHandleIntent(@Nullable Intent intent) {
@@ -309,4 +265,16 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
 
         return notificationBuilder.build();
     }
+
+/*
+    private void initProperties(Context context) {
+        try {
+            AssetManager assetManager = context.getAssets();
+            InputStream inputStream = assetManager.open("config.properties");
+            properties.load(inputStream);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+*/
 }
