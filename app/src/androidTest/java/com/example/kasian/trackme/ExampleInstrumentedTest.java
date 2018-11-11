@@ -1,4 +1,4 @@
-package com.pereginiak.trackme;
+package com.example.kasian.trackme;
 
 import android.content.Context;
 import android.support.test.InstrumentationRegistry;
@@ -21,6 +21,6 @@ public class ExampleInstrumentedTest {
         // Context of the app under test.
         Context appContext = InstrumentationRegistry.getTargetContext();
 
-        assertEquals("com.pereginiak.trackme", appContext.getPackageName());
+        assertEquals("com.example.kasian.trackme", appContext.getPackageName());
     }
 }

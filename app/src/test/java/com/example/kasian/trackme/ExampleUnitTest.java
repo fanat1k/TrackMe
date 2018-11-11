@@ -1,4 +1,4 @@
-package com.pereginiak.trackme;
+package com.example.kasian.trackme;
 
 import org.junit.Test;
 
