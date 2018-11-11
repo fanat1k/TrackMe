@@ -14,10 +14,16 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.widget.Toast;
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.location.*;
 
-import java.text.DateFormat;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.LocationSettingsRequest;
+import com.google.android.gms.location.SettingsClient;
+
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -26,57 +32,56 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Executors;
 
-import javax.security.auth.login.LoginException;
-
 import static com.google.android.gms.location.LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY;
 
 public class GPSTrackerService extends IntentService implements GoogleApiClient.ConnectionCallbacks {
 
-    //TODO(kasian @2018-09-26): need when start Service with foreground notification,
-    // (trying to encrease quantity of gps requests when app is on backgound)
-    private static final int FOREGROUND_ID = 1338;
+    private LocationRequest locationRequest;
+
+    private LocationCallback changeLocationCallback;
 
     private FusedLocationProviderClient fusedLocationProviderClient;
 
-    private LocationRequest locationRequest;
+    private static final long LOCATION_REQUEST_UPDATE_INTERVAL = 60 * 1000;     // 1 min
 
-    //TODO(romanpe @2018-10-23):
-    private LocationCallback locationCallback;
+    private static final long LOCATION_REQUEST_FASTEST_INTERVAL = 20 * 1000;    // 2 sec
 
-    //TODO(kasian @2018-11-11): change to 8 and 21 accordingly
-    private static final int START_TIME = 8;
+    private static final int START_TIME = 1;            // 8AM
 
-    private static final int STOP_TIME = 21;
+    private static final int STOP_TIME = 21;            // 9PM
 
-    // TODO: 11.11.2018 set to 24 hours
-    //private static final int PERIOD = 60*60*24*1000;
-    private static final int PERIOD = 60*60*1000;
+    private static final int PERIOD = 60*60*24*1000;    // 24 hours
 
-    private static final long LOCATION_REQUEST_UPDATE_INTERVAL = 60 * 1000;
-
-    private static final long LOCATION_REQUEST_FASTEST_INTERVAL = 10 * 2000;
+    //TODO(kasian @2018-09-26): need when start Service with foreground notification
+    // (trying to encrease quantity of gps requests when app is on backgound)
+    private static final int FOREGROUND_ID = 1338;
 
     private static final String TAG = "GPSTracker";
 
     public GPSTrackerService() {
         super(TAG);
     }
-
-    @Override
-    public int onStartCommand(@Nullable Intent intent, int flags, int startId) {
-        Log.i(TAG, "onStartCommand");
-
-        Toast.makeText(getApplicationContext(), "Foreground service has been started.", Toast.LENGTH_LONG).show();
-        return super.onStartCommand(intent, flags, startId);
-    }
-
+    
     @Override
     public void onStart(@Nullable Intent intent, int startId) {
         super.onStart(intent, startId);
         Log.i(TAG, "onStart");
 
+        Toast.makeText(getApplicationContext(), "Foreground service has been started.", Toast.LENGTH_LONG).show()
+
         initLocationUpdates();
         scheduleLocationUpdates();
+    }
+
+    @Override
+    protected void onHandleIntent(@Nullable Intent intent) {
+        Log.i(TAG, "onHandleIntent");
+
+        //TODO(romanpe @2018-10-23): is it make sense? how to start it properly then
+        //startForeground(FOREGROUND_ID, buildForegroundNotification());
+
+        // TODO: 12.11.2018 tmp for testing
+        Executors.newSingleThreadExecutor().submit(new GPSTrackerPingThread());
     }
 
     @Override
@@ -106,17 +111,19 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
             }
         }
 
-        // TODO: 11.11.2018
-//        Date startTime = getRunTime(START_TIME);
-//        Date stopTime = getRunTime(STOP_TIME);
-        Date startTime = getRunTime(23, 48);
-        Date stopTime = getRunTime(00, 10);
-
+        Date startTime = getRunTime(START_TIME);
+        Date stopTime = getRunTime(STOP_TIME);
         Date currentTime = Calendar.getInstance().getTime();
-        if (startTime.before(currentTime)) {
+
+        if (currentTime.after(startTime)) {
             startTime = addOneDay(startTime);
+
+            if (currentTime.before(stopTime)) {
+                startLocationUpdates();
+            }
         }
-        if (stopTime.before(currentTime)) {
+
+        if (currentTime.after(stopTime)) {
             stopTime = addOneDay(stopTime);
         }
 
@@ -132,17 +139,6 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         return calendar.getTime();
     }
 
-    // TODO: 11.11.2018 delete
-    private Date getRunTime(int runHour, int runMin) {
-        Calendar calendar = Calendar.getInstance();
-        calendar.set(Calendar.HOUR_OF_DAY, runHour);
-        calendar.set(Calendar.MINUTE, runMin);
-        calendar.set(Calendar.SECOND, 0);
-
-        return calendar.getTime();
-    }
-
-/*
     private Date getRunTime(int runHour) {
         Calendar calendar = Calendar.getInstance();
         calendar.set(Calendar.HOUR_OF_DAY, runHour);
@@ -151,7 +147,6 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
 
         return calendar.getTime();
     }
-*/
 
     @NonNull
     private LocationRequest createLocationRequest() {
@@ -165,7 +160,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     }
 
     private void initLocationUpdates() {
-        locationCallback = new LocationCallback() {
+        changeLocationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
                 Location location = locationResult.getLastLocation();
@@ -195,7 +190,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
 
-            fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper());
+            fusedLocationProviderClient.requestLocationUpdates(locationRequest, changeLocationCallback, Looper.getMainLooper());
         } else {
             Log.e(TAG, "Location permissions turned off");
         }
@@ -204,18 +199,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     //TODO(romanpe @2018-10-24): synchronized?
     private synchronized void stopLocationUpdates() {
         Log.i(TAG, "Stop request location updates");
-        fusedLocationProviderClient.removeLocationUpdates(locationCallback);
-    }
-
-    @Override
-    protected void onHandleIntent(@Nullable Intent intent) {
-        Log.i(TAG, "onHandleIntent");
-
-        //TODO(romanpe @2018-10-23): is it make sense? how to start it properly then
-        //startForeground(FOREGROUND_ID, buildForegroundNotification());
-
-        //TODO(romanpe @2018-10-24): why does it start in this method?
-        Executors.newSingleThreadExecutor().submit(new GPSTrackerPingThread());
+        fusedLocationProviderClient.removeLocationUpdates(changeLocationCallback);
     }
 
     private class GPSTrackerPingThread implements Runnable {
