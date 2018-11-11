@@ -42,9 +42,9 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
 
     private FusedLocationProviderClient fusedLocationProviderClient;
 
-    private static final long LOCATION_REQUEST_UPDATE_INTERVAL = 60 * 1000;     // 1 min
+    private static final long LOCATION_REQUEST_UPDATE_INTERVAL = 30 * 1000;     // 30 min
 
-    private static final long LOCATION_REQUEST_FASTEST_INTERVAL = 20 * 1000;    // 2 sec
+    private static final long LOCATION_REQUEST_FASTEST_INTERVAL = 10 * 1000;    // 10 sec
 
     private static final int START_TIME = 1;            // 8AM
 
@@ -61,13 +61,13 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     public GPSTrackerService() {
         super(TAG);
     }
-    
+
     @Override
     public void onStart(@Nullable Intent intent, int startId) {
         super.onStart(intent, startId);
         Log.i(TAG, "onStart");
 
-        Toast.makeText(getApplicationContext(), "Foreground service has been started.", Toast.LENGTH_LONG).show()
+        Toast.makeText(getApplicationContext(), "Foreground service has been started.", Toast.LENGTH_LONG).show();
 
         initLocationUpdates();
         scheduleLocationUpdates();
@@ -81,7 +81,21 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         //startForeground(FOREGROUND_ID, buildForegroundNotification());
 
         // TODO: 12.11.2018 tmp for testing
-        Executors.newSingleThreadExecutor().submit(new GPSTrackerPingThread());
+        Runnable pingRequest = new Runnable() {
+            @Override
+            public void run() {
+                while (true) {
+                    Log.i(TAG, "GPSTrackerPingThread ping...");
+                    sendBroadcast(0, 0);
+                    try {
+                        Thread.sleep(60 * 1000);
+                    } catch (InterruptedException e) {
+                        Log.i(TAG, "ERROR:" + e.getMessage());
+                    }
+                }
+            }
+        };
+        //Executors.newSingleThreadExecutor().submit(pingRequest);
     }
 
     @Override
@@ -200,21 +214,6 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     private synchronized void stopLocationUpdates() {
         Log.i(TAG, "Stop request location updates");
         fusedLocationProviderClient.removeLocationUpdates(changeLocationCallback);
-    }
-
-    private class GPSTrackerPingThread implements Runnable {
-        @Override
-        public void run() {
-            while (true) {
-                Log.i(TAG, "GPSTrackerPingThread ping...");
-                sendBroadcast(0, 0);
-                try {
-                    Thread.sleep(60*1000);
-                } catch (InterruptedException e) {
-                    Log.i(TAG, "ERROR:" + e.getMessage());
-                }
-            }
-        }
     }
 
     private void sendBroadcast(double latitude, double longitude) {
