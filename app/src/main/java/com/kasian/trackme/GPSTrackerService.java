@@ -142,9 +142,9 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         }
 
         Timer timer = new Timer();
-        Log.i(TAG, "Schedule start at: " + startTime);
+        Log.i(TAG, "Schedule tracking location start at: " + startTime);
         timer.scheduleAtFixedRate(new StartLocationUpdates(), startTime, PERIOD);
-        Log.i(TAG, "Schedule stop at: " + stopTime);
+        Log.i(TAG, "Schedule tracking location stop at: " + stopTime);
         timer.scheduleAtFixedRate(new StopLocationUpdates(), stopTime, PERIOD);
     }
 
