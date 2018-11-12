@@ -27,8 +27,7 @@ public class MainActivity extends AppCompatActivity {
         if (locationRequestPermissions) {
             startGpsTrackerService();
 
-            // TODO: 12.11.2018 uncomment
-            //finishMainActivity();
+            finishMainActivity();
         }
     }
 
@@ -79,8 +78,7 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(getApplicationContext(), "Location permissions declined, exiting ...", Toast.LENGTH_LONG).show();
                 }
 
-                // TODO: 12.11.2018 uncomment
-                //finishMainActivity();
+                finishMainActivity();
             }
         }
     }

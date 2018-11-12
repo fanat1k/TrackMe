@@ -42,7 +42,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
 
     private FusedLocationProviderClient fusedLocationProviderClient;
 
-    private static final long LOCATION_REQUEST_UPDATE_INTERVAL = 30 * 1000;     // 30 min
+    private static final long LOCATION_REQUEST_UPDATE_INTERVAL = 30 * 1000;     // 30 sec
 
     private static final long LOCATION_REQUEST_FASTEST_INTERVAL = 10 * 1000;    // 10 sec
 
@@ -88,7 +88,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
                     Log.i(TAG, "GPSTrackerPingThread ping...");
                     sendBroadcast(0, 0);
                     try {
-                        Thread.sleep(60 * 1000);
+                        Thread.sleep(30 * 1000);
                     } catch (InterruptedException e) {
                         Log.i(TAG, "ERROR:" + e.getMessage());
                     }
