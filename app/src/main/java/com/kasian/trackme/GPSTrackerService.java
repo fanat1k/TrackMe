@@ -46,7 +46,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
 
     private static final long LOCATION_REQUEST_FASTEST_INTERVAL = 10 * 1000;    // 10 sec
 
-    private static final int START_TIME = 1;            // 8AM
+    private static final int START_TIME = 8;            // 8AM
 
     private static final int STOP_TIME = 21;            // 9PM
 
