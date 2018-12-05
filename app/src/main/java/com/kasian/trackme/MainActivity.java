@@ -44,7 +44,8 @@ public class MainActivity extends AppCompatActivity {
     // Finish main activity and left service working in background
     private void finishMainActivity() {
         Log.i(TAG, "finish main activity");
-        finish();
+
+        //finish();
     }
 
     private void checkPermissions() {

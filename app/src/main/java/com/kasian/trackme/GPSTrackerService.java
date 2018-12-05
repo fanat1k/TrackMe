@@ -6,7 +6,9 @@ import android.app.Notification;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
+import android.os.Binder;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -30,7 +32,9 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static com.google.android.gms.location.LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY;
 
@@ -42,21 +46,29 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
 
     private FusedLocationProviderClient fusedLocationProviderClient;
 
-    private static final long LOCATION_REQUEST_UPDATE_INTERVAL = 30 * 1000;     // 30 sec
+    private GpsCoordinatesHolder coordinateHolder = GpsCoordinatesHolder.getInstance();
 
-    private static final long LOCATION_REQUEST_FASTEST_INTERVAL = 10 * 1000;    // 10 sec
+    private static final long COORDINATE_LIVE_TIME = 60*60*24*1000;             // 24 hours
 
-    private static final int START_TIME = 8;            // 8AM
+    private static final long LOCATION_REQUEST_UPDATE_INTERVAL = 30 * 1000;     // 30 secs
 
-    private static final int STOP_TIME = 21;            // 9PM
+    private static final long LOCATION_REQUEST_FASTEST_INTERVAL = 10 * 1000;    // 10 secs
+
+    private static final int START_TIME = 6;            // 8AM
+
+    private static final int STOP_TIME = 4;            // 9PM
 
     private static final int PERIOD = 60*60*24*1000;    // 24 hours
+
+    private static final String DELIMITER = ";";
 
     //TODO(kasian @2018-09-26): need when start Service with foreground notification
     // (trying to encrease quantity of gps requests when app is on backgound)
     private static final int FOREGROUND_ID = 1338;
 
     private static final String TAG = "GPSTracker";
+
+    private final IBinder mBinder = new LocalBinder();
 
     public GPSTrackerService() {
         super(TAG);
@@ -71,6 +83,9 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
 
         initLocationUpdates();
         scheduleLocationUpdates();
+
+        Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(
+                new CoordinateHolderCleanerThread(), 24, 1, TimeUnit.HOURS);
     }
 
     @Override
@@ -86,16 +101,16 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
             public void run() {
                 while (true) {
                     Log.i(TAG, "GPSTrackerPingThread ping...");
-                    sendBroadcast(0, 0);
+                    saveCoordinates(0, 0);
                     try {
-                        Thread.sleep(30 * 1000);
+                        Thread.sleep(60 * 1000);
                     } catch (InterruptedException e) {
                         Log.i(TAG, "ERROR:" + e.getMessage());
                     }
                 }
             }
         };
-        //Executors.newSingleThreadExecutor().submit(pingRequest);
+        Executors.newSingleThreadExecutor().submit(pingRequest);
     }
 
     @Override
@@ -106,6 +121,42 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     @Override
     public void onConnectionSuspended(int i) {
         Log.i(TAG, "!!!onConnectionSuspended");
+    }
+
+    public class LocalBinder extends Binder {
+        GPSTrackerService getService() {
+            return GPSTrackerService.this;
+        }
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return mBinder;
+    }
+
+    public String getAllCoordinates() {
+        if (coordinateHolder.isEmpty()) {
+            return null;
+        }
+
+        StringBuilder stringBuilder = new StringBuilder();
+        while (!coordinateHolder.isEmpty()) {
+            Coordinate coordinate = coordinateHolder.poll();
+            if (coordinate != null) {
+                stringBuilder
+                        .append(coordinate.getDate())
+                        .append(DELIMITER)
+                        .append(coordinate.getTime())
+                        .append(DELIMITER)
+                        .append(coordinate.getLatitude())
+                        .append(DELIMITER)
+                        .append(coordinate.getLongitude())
+                        .append("\n")
+                ;
+            }
+        }
+
+        return stringBuilder.toString();
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -129,16 +180,16 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         Date stopTime = getRunTime(STOP_TIME);
         Date currentTime = Calendar.getInstance().getTime();
 
+        if (currentTime.after(stopTime)) {
+            stopTime = addOneDay(stopTime);
+        }
+
         if (currentTime.after(startTime)) {
             startTime = addOneDay(startTime);
 
             if (currentTime.before(stopTime)) {
                 startLocationUpdates();
             }
-        }
-
-        if (currentTime.after(stopTime)) {
-            stopTime = addOneDay(stopTime);
         }
 
         Timer timer = new Timer();
@@ -181,7 +232,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
             public void onLocationResult(LocationResult locationResult) {
                 Location location = locationResult.getLastLocation();
                 Log.i(TAG, "location changed:" + location);
-                sendBroadcast(location.getLatitude(), location.getLongitude());
+                saveCoordinates(location.getLatitude(), location.getLongitude());
             }
         };
 
@@ -218,20 +269,18 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         fusedLocationProviderClient.removeLocationUpdates(changeLocationCallback);
     }
 
-    private void sendBroadcast(double latitude, double longitude) {
-        String currentDateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Calendar.getInstance().getTime());
+    private void saveCoordinates(double latitude, double longitude) {
+        Date time = Calendar.getInstance().getTime();
+        String currentDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(time);
+        String currentTime = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(time);
 
-        Intent intent = new Intent("location");
-        intent.setAction("com.kasian.LOCACTION_CHANGED");
-        intent.putExtra("time", currentDateTime);
-        intent.putExtra("latitude", latitude);
-        intent.putExtra("longitude", longitude);
+        Coordinate coordinates = new Coordinate(System.currentTimeMillis(), latitude, longitude, currentDate, currentTime);
+        Log.d(TAG, "Save new coordinates:" + coordinates);
 
-        Log.d(TAG, "send new location broadcast:" + currentDateTime + " - " + latitude + " : " + longitude);
-        sendBroadcast(intent);
+        coordinateHolder.add(coordinates);
     }
 
-    // TODO: 11.11.2018 ???
+    // TODO: 11.11.2018 need?
     private Notification buildForegroundNotification() {
         NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, "channelId");
 
@@ -243,6 +292,27 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
                 .setTicker(getString(R.string.downloading));
 
         return notificationBuilder.build();
+    }
+
+    private class CoordinateHolderCleanerThread implements Runnable {
+        @Override
+        public void run() {
+            Log.i(TAG, "Start coordinate cleaner");
+            long currentTime = System.currentTimeMillis();
+            while (!coordinateHolder.isEmpty()) {
+                synchronized (coordinateHolder) {
+                    Coordinate coordinate = coordinateHolder.peek();
+                    if (coordinate != null) {
+                        if (currentTime - coordinate.getTimestamp() > COORDINATE_LIVE_TIME) {
+                            Log.i(TAG, "Remove coordinate from queue due to timeout:" + coordinate);
+                            coordinateHolder.poll();
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
 
 /*
