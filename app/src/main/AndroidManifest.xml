@@ -29,7 +29,7 @@
 
         <activity
             android:name=".ServiceActivity"
-            android:exported="true"
+            android:exported="true">
             <intent-filter>
                 <action android:name="com.kasian.trackme.ServiceActivity"></action>
                 <category android:name="android.intent.category.DEFAULT"></category>
