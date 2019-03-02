@@ -32,33 +32,23 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static com.google.android.gms.location.LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY;
-
 public class GPSTrackerService extends IntentService implements GoogleApiClient.ConnectionCallbacks {
-
     private LocationRequest locationRequest;
-
     private LocationCallback changeLocationCallback;
-
     private FusedLocationProviderClient fusedLocationProviderClient;
-
     private GpsCoordinatesHolder coordinateHolder = GpsCoordinatesHolder.getInstance();
 
-    private static final long COORDINATE_LIVE_TIME = 60*60*24*1000;             // 24 hours
-
     private static final long LOCATION_REQUEST_UPDATE_INTERVAL = 30 * 1000;     // 30 secs
-
     private static final long LOCATION_REQUEST_FASTEST_INTERVAL = 10 * 1000;    // 10 secs
 
-    private static final int START_TIME = 6;            // 8AM
+    private static final int START_TIME = 8;        // 8AM
+    private static final int STOP_TIME = 23;        // 9PM      // TODO: 02.03.2019
 
-    private static final int STOP_TIME = 4;            // 9PM
-
-    private static final int PERIOD = 60*60*24*1000;    // 24 hours
+    private static final int PERIOD = 60*60*24*1000;                // 24 hours
+    private static final long COORDINATE_LIVE_TIME = 60*60*24*1000; // 24 hours
 
     private static final String DELIMITER = ";";
 
@@ -66,7 +56,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     // (trying to encrease quantity of gps requests when app is on backgound)
     private static final int FOREGROUND_ID = 1338;
 
-    private static final String TAG = "GPSTracker";
+    private static final String TAG = "GPSTracker:GPSTrackerService";
 
     private final IBinder mBinder = new LocalBinder();
 
@@ -79,7 +69,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         super.onStart(intent, startId);
         Log.i(TAG, "onStart");
 
-        Toast.makeText(getApplicationContext(), "Foreground service has been started.", Toast.LENGTH_LONG).show();
+        Toast.makeText(getApplicationContext(), "GPSTrackerService service has been started.", Toast.LENGTH_LONG).show();
 
         initLocationUpdates();
         scheduleLocationUpdates();
@@ -161,6 +151,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     private void scheduleLocationUpdates() {
+        Log.i(TAG, "scheduleLocationUpdates");
 
         class StartLocationUpdates extends TimerTask {
             @Override
@@ -188,6 +179,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
             startTime = addOneDay(startTime);
 
             if (currentTime.before(stopTime)) {
+                // TODO: 02.03.2019 is it ok to run it in main thread?
                 startLocationUpdates();
             }
         }
@@ -195,6 +187,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         Timer timer = new Timer();
         Log.i(TAG, "Schedule tracking location start at: " + startTime);
         timer.scheduleAtFixedRate(new StartLocationUpdates(), startTime, PERIOD);
+
         Log.i(TAG, "Schedule tracking location stop at: " + stopTime);
         timer.scheduleAtFixedRate(new StopLocationUpdates(), stopTime, PERIOD);
     }
@@ -215,32 +208,35 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         return calendar.getTime();
     }
 
-    @NonNull
     private LocationRequest createLocationRequest() {
         LocationRequest locationRequest = new LocationRequest();
+
+        //TODO: check if WiFi is used in case of PRIORITY_HIGH_ACCURACY
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+
         locationRequest.setInterval(LOCATION_REQUEST_UPDATE_INTERVAL);
         locationRequest.setFastestInterval(LOCATION_REQUEST_FASTEST_INTERVAL);
-        //TODO: check if it's optimal
-        locationRequest.setPriority(PRIORITY_BALANCED_POWER_ACCURACY);
+
         return locationRequest;
     }
 
     private void initLocationUpdates() {
+        Log.i(TAG, "initLocationUpdates");
+
         changeLocationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
                 Location location = locationResult.getLastLocation();
-                Log.i(TAG, "location changed:" + location);
+                Log.i(TAG, "Location changed:" + location);
                 saveCoordinates(location.getLatitude(), location.getLongitude());
             }
         };
 
         locationRequest = createLocationRequest();
 
-        LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder();
-        builder.addLocationRequest(locationRequest);
-        LocationSettingsRequest locationSettingsRequest = builder.build();
+        LocationSettingsRequest.Builder locationSettingsBuilder = new LocationSettingsRequest.Builder();
+        locationSettingsBuilder.addLocationRequest(locationRequest);
+        LocationSettingsRequest locationSettingsRequest = locationSettingsBuilder.build();
 
         // Check whether location settings are satisfied
         // https://developers.google.com/android/reference/com/google/android/gms/location/SettingsClient
@@ -252,7 +248,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
 
     //TODO(romanpe @2018-10-24): synchronized?
     private synchronized void startLocationUpdates() {
-        Log.i(TAG, "Start request location updates");
+        Log.i(TAG, "Start requesting location updates.");
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
@@ -265,7 +261,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
 
     //TODO(romanpe @2018-10-24): synchronized?
     private synchronized void stopLocationUpdates() {
-        Log.i(TAG, "Stop request location updates");
+        Log.i(TAG, "Stop requesting location updates.");
         fusedLocationProviderClient.removeLocationUpdates(changeLocationCallback);
     }
 

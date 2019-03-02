@@ -11,12 +11,9 @@ import android.util.Log;
 import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
-
     private static boolean locationRequestPermissions = false;
-
     private static final int LOCATION_REQUEST_PERMISSION_CODE = 100;
-
-    private static final String TAG = "GPSTracker";
+    private static final String TAG = "GPSTracker:MainActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -26,7 +23,6 @@ public class MainActivity extends AppCompatActivity {
         checkPermissions();
         if (locationRequestPermissions) {
             startGpsTrackerService();
-
             finishMainActivity();
         }
     }
@@ -43,39 +39,42 @@ public class MainActivity extends AppCompatActivity {
 
     // Finish main activity and left service working in background
     private void finishMainActivity() {
-        Log.i(TAG, "finish main activity");
+        Log.i(TAG, "Finish main activity.");
 
-        //finish();
+        finish();
     }
 
     private void checkPermissions() {
         Log.i(TAG, "checkPermissions");
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            Log.w(TAG, "Request location permissions");
+            Log.w(TAG, "Location permissions disabled. Requesting location permissions.");
 
             ActivityCompat.requestPermissions(
                     this,
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},
                     LOCATION_REQUEST_PERMISSION_CODE);
         } else {
+            Log.i(TAG, "Location permissions enabled.");
             locationRequestPermissions = true;
-            Log.i(TAG, "Location permissions are OK");
         }
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        Log.i(TAG, "onRequestPermissionsResult");
+        Log.i(TAG, "requestCode=" + requestCode + ";permissions=" + permissions + ";grantResults" + grantResults);
 
         switch (requestCode) {
             case LOCATION_REQUEST_PERMISSION_CODE: {
                 // If request is cancelled, the result array is empty.
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    Log.i(TAG, "Location permissions granted");
+                    Log.i(TAG, "Location permissions granted.");
+                    locationRequestPermissions = true;
                     startGpsTrackerService();
                 } else {
-                    Log.i(TAG, "Location permissions declined");
+                    Log.i(TAG, "Location permissions declined.");
                     Toast.makeText(getApplicationContext(), "Location permissions declined, exiting ...", Toast.LENGTH_LONG).show();
                 }
 
