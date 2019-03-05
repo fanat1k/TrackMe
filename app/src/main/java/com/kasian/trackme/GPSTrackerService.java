@@ -18,17 +18,23 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.ResolvableApiException;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
+import com.google.android.gms.location.LocationSettingsResponse;
 import com.google.android.gms.location.SettingsClient;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -67,7 +73,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     @Override
     public void onStart(@Nullable Intent intent, int startId) {
         super.onStart(intent, startId);
-        Log.i(TAG, "onStart");
+        Log.i(TAG, "onStart1");
 
         Toast.makeText(getApplicationContext(), "GPSTrackerService service has been started.", Toast.LENGTH_LONG).show();
 
@@ -76,6 +82,24 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
 
         Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(
                 new CoordinateHolderCleanerThread(), 24, 1, TimeUnit.HOURS);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        Log.i(TAG, "onDestroy");
+    }
+
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        super.onTaskRemoved(rootIntent);
+        Log.i(TAG, "onTaskRemoved");
+    }
+
+    @Override
+    public void onLowMemory() {
+        super.onLowMemory();
+        Log.i(TAG, "onLowMemory");
     }
 
     @Override
@@ -209,7 +233,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     }
 
     private LocationRequest createLocationRequest() {
-        LocationRequest locationRequest = new LocationRequest();
+        LocationRequest locationRequest = LocationRequest.create();
 
         //TODO: check if WiFi is used in case of PRIORITY_HIGH_ACCURACY
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -226,22 +250,38 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         changeLocationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
-                Location location = locationResult.getLastLocation();
-                Log.i(TAG, "Location changed:" + location);
-                saveCoordinates(location.getLatitude(), location.getLongitude());
+                // TODO: 05.03.2019 debug only:
+                Location lastLocation = locationResult.getLastLocation();
+                Log.i(TAG, "Last location:" + lastLocation);
+                for (Location location : locationResult.getLocations()) {
+                    Log.i(TAG, "Location changed:" + location);
+                    saveCoordinates(location.getLatitude(), location.getLongitude());
+                }
             }
         };
 
         locationRequest = createLocationRequest();
 
-        LocationSettingsRequest.Builder locationSettingsBuilder = new LocationSettingsRequest.Builder();
-        locationSettingsBuilder.addLocationRequest(locationRequest);
-        LocationSettingsRequest locationSettingsRequest = locationSettingsBuilder.build();
+        LocationSettingsRequest.Builder locationSettingsBuilder = new LocationSettingsRequest.Builder().addLocationRequest(locationRequest);
 
         // Check whether location settings are satisfied
         // https://developers.google.com/android/reference/com/google/android/gms/location/SettingsClient
         SettingsClient settingsClient = LocationServices.getSettingsClient(this);
-        settingsClient.checkLocationSettings(locationSettingsRequest);
+        Task<LocationSettingsResponse> task = settingsClient.checkLocationSettings(locationSettingsBuilder.build());
+
+        // TODO: 05.03.2019 for debug only
+        task.addOnSuccessListener(new OnSuccessListener<LocationSettingsResponse>() {
+            @Override
+            public void onSuccess(LocationSettingsResponse locationSettingsResponse) {
+                Log.i(TAG, "locationSettingsResponse:onSuccess=" + locationSettingsResponse);
+            }
+        });
+        task.addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                Log.i(TAG,"locationSettingsResponse:onFailure:e=" + e);
+            }
+        });
 
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
     }
