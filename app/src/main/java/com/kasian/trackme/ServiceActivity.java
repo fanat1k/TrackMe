@@ -28,7 +28,7 @@ public class ServiceActivity extends Activity {
             @Override
             public void onServiceConnected(ComponentName className, IBinder service) {
                 Log.i(TAG, "onServiceConnected");
-                GPSTrackerService.LocalBinder binder = (GPSTrackerService.LocalBinder) service;
+                GPSTrackerService.LocationServiceBinder binder = (GPSTrackerService.LocationServiceBinder) service;
                 mService = binder.getService();
                 mBound = true;
 

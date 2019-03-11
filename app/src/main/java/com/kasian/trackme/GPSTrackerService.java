@@ -3,6 +3,8 @@ package com.kasian.trackme;
 import android.Manifest;
 import android.app.IntentService;
 import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
@@ -13,12 +15,10 @@ import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.widget.Toast;
 
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.ResolvableApiException;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -34,7 +34,6 @@ import com.google.android.gms.tasks.Task;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.List;
 import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -47,33 +46,28 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     private FusedLocationProviderClient fusedLocationProviderClient;
     private GpsCoordinatesHolder coordinateHolder = GpsCoordinatesHolder.getInstance();
 
-    private static final long LOCATION_REQUEST_UPDATE_INTERVAL = 30 * 1000;     // 30 secs
-    private static final long LOCATION_REQUEST_FASTEST_INTERVAL = 10 * 1000;    // 10 secs
-
-    private static final int START_TIME = 8;        // 8AM
-    private static final int STOP_TIME = 23;        // 9PM      // TODO: 02.03.2019
-
-    private static final int PERIOD = 60*60*24*1000;                // 24 hours
-    private static final long COORDINATE_LIVE_TIME = 60*60*24*1000; // 24 hours
-
-    private static final String DELIMITER = ";";
-
-    //TODO(kasian @2018-09-26): need when start Service with foreground notification
-    // (trying to encrease quantity of gps requests when app is on backgound)
-    private static final int FOREGROUND_ID = 1338;
+    private final IBinder mBinder = new LocationServiceBinder();
 
     private static final String TAG = "GPSTracker:GPSTrackerService";
-
-    private final IBinder mBinder = new LocalBinder();
 
     public GPSTrackerService() {
         super(TAG);
     }
 
     @Override
+    public void onCreate() {
+        super.onCreate();
+        Log.i(TAG, "onCreate");
+
+        createNotificationChannel();
+        Notification notification = createNotification();
+        startForeground(1, notification);
+    }
+
+    @Override
     public void onStart(@Nullable Intent intent, int startId) {
         super.onStart(intent, startId);
-        Log.i(TAG, "onStart1");
+        Log.i(TAG, "onStart");
 
         Toast.makeText(getApplicationContext(), "GPSTrackerService service has been started.", Toast.LENGTH_LONG).show();
 
@@ -85,31 +79,11 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     }
 
     @Override
-    public void onDestroy() {
-        super.onDestroy();
-        Log.i(TAG, "onDestroy");
-    }
-
-    @Override
-    public void onTaskRemoved(Intent rootIntent) {
-        super.onTaskRemoved(rootIntent);
-        Log.i(TAG, "onTaskRemoved");
-    }
-
-    @Override
-    public void onLowMemory() {
-        super.onLowMemory();
-        Log.i(TAG, "onLowMemory");
-    }
-
-    @Override
     protected void onHandleIntent(@Nullable Intent intent) {
         Log.i(TAG, "onHandleIntent");
 
-        //TODO(romanpe @2018-10-23): is it make sense? how to start it properly then
-        //startForeground(FOREGROUND_ID, buildForegroundNotification());
-
         // TODO: 12.11.2018 tmp for testing
+        // TODO: 08.03.2019 move this ping to onCreate ? Make sure that onHandleIntent is run only once!
         Runnable pingRequest = new Runnable() {
             @Override
             public void run() {
@@ -129,18 +103,26 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
-        Log.i(TAG, "!!!onConnected");
+        Log.i(TAG, "onConnected");
     }
-
     @Override
     public void onConnectionSuspended(int i) {
-        Log.i(TAG, "!!!onConnectionSuspended");
+        Log.i(TAG, "onConnectionSuspended");
     }
-
-    public class LocalBinder extends Binder {
-        GPSTrackerService getService() {
-            return GPSTrackerService.this;
-        }
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        Log.i(TAG, "onDestroy");
+    }
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        super.onTaskRemoved(rootIntent);
+        Log.i(TAG, "onTaskRemoved");
+    }
+    @Override
+    public void onLowMemory() {
+        super.onLowMemory();
+        Log.i(TAG, "onLowMemory");
     }
 
     @Override
@@ -150,7 +132,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
 
     public String getAllCoordinates() {
         if (coordinateHolder.isEmpty()) {
-            return null;
+            return "";
         }
 
         StringBuilder stringBuilder = new StringBuilder();
@@ -159,11 +141,11 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
             if (coordinate != null) {
                 stringBuilder
                         .append(coordinate.getDate())
-                        .append(DELIMITER)
+                        .append(Utils.DELIMITER)
                         .append(coordinate.getTime())
-                        .append(DELIMITER)
+                        .append(Utils.DELIMITER)
                         .append(coordinate.getLatitude())
-                        .append(DELIMITER)
+                        .append(Utils.DELIMITER)
                         .append(coordinate.getLongitude())
                         .append("\n")
                 ;
@@ -171,6 +153,36 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         }
 
         return stringBuilder.toString();
+    }
+
+    private Notification createNotification() {
+        Notification.Builder builder = new Notification.Builder(this, Utils.NOTIFICATION_CHANNEL_ID)
+                .setContentTitle(getString(R.string.app_name))
+                .setAutoCancel(true);
+        return builder.build();
+    }
+
+    private void createNotificationChannel() {
+        NotificationChannel channel = new NotificationChannel(
+                Utils.NOTIFICATION_CHANNEL_ID,
+                getString(R.string.channel_name),
+                NotificationManager.IMPORTANCE_DEFAULT);
+
+        // Register the channel with the system; you can't change the importance
+        // or other notification behaviors after this
+        NotificationManager notificationManager = getSystemService(NotificationManager.class);
+        if (notificationManager == null) {
+            Log.e(TAG, "Can not create Notification Channel: notificationManager is null");
+        } else {
+            Log.i(TAG, "createNotificationChannel:" + channel);
+            notificationManager.createNotificationChannel(channel);
+        }
+    }
+
+    public class LocationServiceBinder extends Binder {
+        GPSTrackerService getService() {
+            return GPSTrackerService.this;
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -191,16 +203,16 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
             }
         }
 
-        Date startTime = getRunTime(START_TIME);
-        Date stopTime = getRunTime(STOP_TIME);
+        Date startTime = Utils.getRunTime(Utils.START_TIME);
+        Date stopTime = Utils.getRunTime(Utils.STOP_TIME);
         Date currentTime = Calendar.getInstance().getTime();
 
         if (currentTime.after(stopTime)) {
-            stopTime = addOneDay(stopTime);
+            stopTime = Utils.addOneDay(stopTime);
         }
 
         if (currentTime.after(startTime)) {
-            startTime = addOneDay(startTime);
+            startTime = Utils.addOneDay(startTime);
 
             if (currentTime.before(stopTime)) {
                 // TODO: 02.03.2019 is it ok to run it in main thread?
@@ -210,38 +222,10 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
 
         Timer timer = new Timer();
         Log.i(TAG, "Schedule tracking location start at: " + startTime);
-        timer.scheduleAtFixedRate(new StartLocationUpdates(), startTime, PERIOD);
+        timer.scheduleAtFixedRate(new StartLocationUpdates(), startTime, Utils.PERIOD);
 
         Log.i(TAG, "Schedule tracking location stop at: " + stopTime);
-        timer.scheduleAtFixedRate(new StopLocationUpdates(), stopTime, PERIOD);
-    }
-
-    private Date addOneDay(Date time) {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(time);
-        calendar.add(Calendar.DATE, 1);
-        return calendar.getTime();
-    }
-
-    private Date getRunTime(int runHour) {
-        Calendar calendar = Calendar.getInstance();
-        calendar.set(Calendar.HOUR_OF_DAY, runHour);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.SECOND, 0);
-
-        return calendar.getTime();
-    }
-
-    private LocationRequest createLocationRequest() {
-        LocationRequest locationRequest = LocationRequest.create();
-
-        //TODO: check if WiFi is used in case of PRIORITY_HIGH_ACCURACY
-        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-
-        locationRequest.setInterval(LOCATION_REQUEST_UPDATE_INTERVAL);
-        locationRequest.setFastestInterval(LOCATION_REQUEST_FASTEST_INTERVAL);
-
-        return locationRequest;
+        timer.scheduleAtFixedRate(new StopLocationUpdates(), stopTime, Utils.PERIOD);
     }
 
     private void initLocationUpdates() {
@@ -260,7 +244,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
             }
         };
 
-        locationRequest = createLocationRequest();
+        locationRequest = Utils.createLocationRequest();
 
         LocationSettingsRequest.Builder locationSettingsBuilder = new LocationSettingsRequest.Builder().addLocationRequest(locationRequest);
 
@@ -316,20 +300,6 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         coordinateHolder.add(coordinates);
     }
 
-    // TODO: 11.11.2018 need?
-    private Notification buildForegroundNotification() {
-        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, "channelId");
-
-        notificationBuilder
-                .setOngoing(true)
-                .setContentTitle(getString(R.string.downloading))
-                .setContentText("Content Text")
-                .setSmallIcon(android.R.drawable.stat_sys_download)
-                .setTicker(getString(R.string.downloading));
-
-        return notificationBuilder.build();
-    }
-
     private class CoordinateHolderCleanerThread implements Runnable {
         @Override
         public void run() {
@@ -339,7 +309,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
                 synchronized (coordinateHolder) {
                     Coordinate coordinate = coordinateHolder.peek();
                     if (coordinate != null) {
-                        if (currentTime - coordinate.getTimestamp() > COORDINATE_LIVE_TIME) {
+                        if (currentTime - coordinate.getTimestamp() > Utils.COORDINATE_LIVE_TIME) {
                             Log.i(TAG, "Remove coordinate from queue due to timeout:" + coordinate);
                             coordinateHolder.poll();
                         } else {
@@ -350,16 +320,4 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
             }
         }
     }
-
-/*
-    private void initProperties(Context context) {
-        try {
-            AssetManager assetManager = context.getAssets();
-            InputStream inputStream = assetManager.open("config.properties");
-            properties.load(inputStream);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-*/
 }
