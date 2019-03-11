@@ -41,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
         startForegroundService(service);
 
         //to make gps location work in background
-        bindService(service, serviceConnection, Context.BIND_AUTO_CREATE);
+        this.getApplication().bindService(service, serviceConnection, Context.BIND_AUTO_CREATE);
     }
 
     // Finish main activity and left service working in background
