@@ -37,7 +37,6 @@ public class MainActivity extends AppCompatActivity {
         Log.i(TAG, "startGpsTrackerService");
         Intent service = new Intent(this, GPSTrackerService.class);
 
-        //startService(service);
         startForegroundService(service);
 
         //to make gps location work in background

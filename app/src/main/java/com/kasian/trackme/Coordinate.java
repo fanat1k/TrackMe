@@ -1,18 +1,20 @@
 package com.kasian.trackme;
 
+import java.text.SimpleDateFormat;
+import java.util.Locale;
+
 public class Coordinate {
     private final long timestamp;
     private final double latitude;
     private final double longitude;
-    private final String date;
-    private final String time;
 
-    public Coordinate(long timestamp, double latitude, double longitude, String date, String time) {
-        this.timestamp = timestamp;
+    private static final SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+    private static final SimpleDateFormat simpleTimeFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+
+    public Coordinate(double latitude, double longitude) {
+        this.timestamp = System.currentTimeMillis();
         this.latitude = latitude;
         this.longitude = longitude;
-        this.date = date;
-        this.time = time;
     }
 
     public long getTimestamp() {
@@ -28,11 +30,11 @@ public class Coordinate {
     }
 
     public String getDate() {
-        return date;
+        return simpleDateFormat.format(timestamp);
     }
 
     public String getTime() {
-        return time;
+        return simpleTimeFormat.format(timestamp);
     }
 
     @Override
@@ -41,8 +43,6 @@ public class Coordinate {
                 "timestamp=" + timestamp +
                 ", latitude=" + latitude +
                 ", longitude=" + longitude +
-                ", date='" + date + '\'' +
-                ", time='" + time + '\'' +
                 '}';
     }
 }

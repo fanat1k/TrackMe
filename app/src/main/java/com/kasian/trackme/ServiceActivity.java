@@ -15,10 +15,6 @@ public class ServiceActivity extends Activity {
 
     private static final String TAG = "GPSTracker:ServiceActivity";
 
-    // TODO: 18.11.2018: does not work as required calling finish() before onResume()
-    // but onServiceConnected() is called after onResume()
-    //android:theme="@android:style/Theme.NoDisplay"
-
     @Override
     protected void onStart() {
         super.onStart();
@@ -32,7 +28,6 @@ public class ServiceActivity extends Activity {
                 mService = binder.getService();
                 mBound = true;
 
-                // TODO: 18.11.2018 correct place?
                 getAndSendBackCoordinates();
                 finish();
             }
@@ -64,7 +59,7 @@ public class ServiceActivity extends Activity {
 
         String coordinates = mService.getAllCoordinates();
 
-        returnIntent.putExtra("coordinates", coordinates);
+        returnIntent.putExtra(Utils.COORDINATES_PARAM, coordinates);
         setResult(Activity.RESULT_OK, returnIntent);
     }
 }

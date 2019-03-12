@@ -31,10 +31,8 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 
-import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Executors;
@@ -44,9 +42,10 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     private LocationRequest locationRequest;
     private LocationCallback changeLocationCallback;
     private FusedLocationProviderClient fusedLocationProviderClient;
-    private GpsCoordinatesHolder coordinateHolder = GpsCoordinatesHolder.getInstance();
 
     private final IBinder mBinder = new LocationServiceBinder();
+
+    private static final GpsCoordinatesHolder coordinateHolder = GpsCoordinatesHolder.getInstance();
 
     private static final String TAG = "GPSTracker:GPSTrackerService";
 
@@ -74,16 +73,17 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         initLocationUpdates();
         scheduleLocationUpdates();
 
-        Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(
-                new CoordinateHolderCleanerThread(), 24, 1, TimeUnit.HOURS);
+        scheduleCoordinatesCleaner();
     }
 
     @Override
     protected void onHandleIntent(@Nullable Intent intent) {
         Log.i(TAG, "onHandleIntent");
+        startPingRequests();
+    }
 
-        // TODO: 12.11.2018 tmp for testing
-        // TODO: 08.03.2019 move this ping to onCreate ? Make sure that onHandleIntent is run only once!
+    // TODO: 12.11.2018 tmp for testing. Make sure that onHandleIntent is run only once!
+    private void startPingRequests() {
         Runnable pingRequest = new Runnable() {
             @Override
             public void run() {
@@ -203,8 +203,8 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
             }
         }
 
-        Date startTime = Utils.getRunTime(Utils.START_TIME);
-        Date stopTime = Utils.getRunTime(Utils.STOP_TIME);
+        Date startTime = Utils.getRunTime(Utils.START_TRACKING_TIME);
+        Date stopTime = Utils.getRunTime(Utils.STOP_TRACKING_TIME);
         Date currentTime = Calendar.getInstance().getTime();
 
         if (currentTime.after(stopTime)) {
@@ -215,17 +215,17 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
             startTime = Utils.addOneDay(startTime);
 
             if (currentTime.before(stopTime)) {
-                // TODO: 02.03.2019 is it ok to run it in main thread?
+                // TODO: 02.03.2019 run in another thread?
                 startLocationUpdates();
             }
         }
 
         Timer timer = new Timer();
         Log.i(TAG, "Schedule tracking location start at: " + startTime);
-        timer.scheduleAtFixedRate(new StartLocationUpdates(), startTime, Utils.PERIOD);
+        timer.scheduleAtFixedRate(new StartLocationUpdates(), startTime, Utils.SCHEDULE_TRACKING_PERIOD);
 
         Log.i(TAG, "Schedule tracking location stop at: " + stopTime);
-        timer.scheduleAtFixedRate(new StopLocationUpdates(), stopTime, Utils.PERIOD);
+        timer.scheduleAtFixedRate(new StopLocationUpdates(), stopTime, Utils.SCHEDULE_TRACKING_PERIOD);
     }
 
     private void initLocationUpdates() {
@@ -234,9 +234,6 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         changeLocationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
-                // TODO: 05.03.2019 debug only:
-                Location lastLocation = locationResult.getLastLocation();
-                Log.i(TAG, "Last location:" + lastLocation);
                 for (Location location : locationResult.getLocations()) {
                     Log.i(TAG, "Location changed:" + location);
                     saveCoordinates(location.getLatitude(), location.getLongitude());
@@ -290,14 +287,14 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     }
 
     private void saveCoordinates(double latitude, double longitude) {
-        Date time = Calendar.getInstance().getTime();
-        String currentDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(time);
-        String currentTime = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(time);
-
-        Coordinate coordinates = new Coordinate(System.currentTimeMillis(), latitude, longitude, currentDate, currentTime);
-        Log.d(TAG, "Save new coordinates:" + coordinates);
-
+        Coordinate coordinates = new Coordinate(latitude, longitude);
+        Log.i(TAG, "Save new coordinates:" + coordinates);
         coordinateHolder.add(coordinates);
+    }
+
+    private void scheduleCoordinatesCleaner() {
+        Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(
+                new CoordinateHolderCleanerThread(), 24, 1, TimeUnit.HOURS);
     }
 
     private class CoordinateHolderCleanerThread implements Runnable {
@@ -308,7 +305,9 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
             while (!coordinateHolder.isEmpty()) {
                 synchronized (coordinateHolder) {
                     Coordinate coordinate = coordinateHolder.peek();
-                    if (coordinate != null) {
+                    if (coordinate == null) {
+                        coordinateHolder.poll();
+                    } else {
                         if (currentTime - coordinate.getTimestamp() > Utils.COORDINATE_LIVE_TIME) {
                             Log.i(TAG, "Remove coordinate from queue due to timeout:" + coordinate);
                             coordinateHolder.poll();
