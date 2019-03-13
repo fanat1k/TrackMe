@@ -4,7 +4,9 @@ import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.os.BatteryManager;
 import android.os.IBinder;
 import android.util.Log;
 
@@ -19,6 +21,13 @@ public class ServiceActivity extends Activity {
     protected void onStart() {
         super.onStart();
         Log.i(TAG,"onStart");
+
+        String shouldGetBatteryLevel = getIntent().getStringExtra(Utils.BATTERY_LEVEL_PARAM);
+        Log.i(TAG, "get_battery_level=" + shouldGetBatteryLevel);
+        if (shouldGetBatteryLevel != null) {
+            getAndSendBackBatteryInfo();
+            finish();
+        }
 
         mConnection = new ServiceConnection() {
             @Override
@@ -53,13 +62,40 @@ public class ServiceActivity extends Activity {
     }
 
     private void getAndSendBackCoordinates() {
+        String coordinates = mService.getAllCoordinates();
         Log.i(TAG, "getAndSendBackCoordinates");
 
         Intent returnIntent = new Intent();
-
-        String coordinates = mService.getAllCoordinates();
-
         returnIntent.putExtra(Utils.COORDINATES_PARAM, coordinates);
         setResult(Activity.RESULT_OK, returnIntent);
+    }
+
+    private void getAndSendBackBatteryInfo() {
+        BatteryInfo batteryInfo = getBatteryInfo();
+        Log.i(TAG, "getAndSendBackBatteryInfo=" + batteryInfo);
+
+        Intent returnIntent = new Intent();
+        returnIntent.putExtra(Utils.BATTERY_LEVEL_PARAM, String.valueOf(batteryInfo.getBatteryLevel()));
+        returnIntent.putExtra(Utils.BATTERY_IS_CHARGING_PARAM, String.valueOf(batteryInfo.isCharging()));
+        setResult(Activity.RESULT_OK, returnIntent);
+    }
+
+    private BatteryInfo getBatteryInfo() {
+        BatteryInfo batteryInfo = new BatteryInfo();
+        IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        Intent batteryStatus = getApplicationContext().registerReceiver(null, ifilter);
+
+        if (batteryStatus != null) {
+            int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+            int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+            boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING;
+
+            batteryInfo.setBatteryLevel(level);
+            batteryInfo.setCharging(isCharging);
+            Log.i(TAG, "batteryInfo=" + batteryInfo);
+        } else {
+            Log.e(TAG, "Can not get battery info");
+        }
+        return batteryInfo;
     }
 }

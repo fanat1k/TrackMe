@@ -13,6 +13,8 @@ public class Utils {
     public static final long COORDINATE_LIVE_TIME = 60*60*24*1000;      // 24 hours
 
     public static final String COORDINATES_PARAM = "coordinates";
+    public static final String BATTERY_LEVEL_PARAM = "battery_level";
+    public static final String BATTERY_IS_CHARGING_PARAM = "battery_is_charging";
     public static final String NOTIFICATION_CHANNEL_ID = "track_me_channel_id";
     public static final String DELIMITER = ";";
 
