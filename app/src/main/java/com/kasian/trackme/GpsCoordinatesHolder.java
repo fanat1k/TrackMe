@@ -14,19 +14,19 @@ public class GpsCoordinatesHolder {
         return instance;
     }
 
-    public synchronized void add(Coordinate coordinate) {
+    public void add(Coordinate coordinate) {
         coordinateHolder.add(coordinate);
     }
 
-    public synchronized Coordinate peek() {
+    public Coordinate peek() {
         return coordinateHolder.peek();
     }
 
-    public synchronized Coordinate poll() {
+    public Coordinate poll() {
         return coordinateHolder.poll();
     }
 
-    public synchronized boolean isEmpty() {
+    public boolean isEmpty() {
         return coordinateHolder.isEmpty();
     }
 }
