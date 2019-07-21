@@ -1,6 +1,7 @@
 package com.kasian.trackme;
 
 import android.Manifest;
+import android.app.ActivityManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -14,6 +15,7 @@ import android.provider.Settings;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.karumi.dexter.Dexter;
 import com.karumi.dexter.PermissionToken;
@@ -37,10 +39,49 @@ public class MainActivity extends AppCompatActivity {
         Log.i(TAG, "startGpsTrackerService");
         Intent service = new Intent(this, GPSTrackerService.class);
 
-        startForegroundService(service);
+        if (!isServiceRunning(GPSTrackerService.class)) {
+            startForegroundService(service);
 
-        //to make gps location work in background
-        this.getApplication().bindService(service, serviceConnection, Context.BIND_AUTO_CREATE);
+            //to make gps location work in background
+            startServiceConnector();
+            this.getApplication().bindService(service, serviceConnection, Context.BIND_AUTO_CREATE);
+        }
+    }
+
+    private GPSTrackerService gpsService;
+    private ServiceConnection serviceConnection;
+
+    private void startServiceConnector() {
+        serviceConnection = new ServiceConnection() {
+            @Override
+            public void onServiceConnected(ComponentName className, IBinder service) {
+                String name = className.getClassName();
+                if (name.endsWith("GPSTrackerService")) {
+                    gpsService = ((GPSTrackerService.LocationServiceBinder) service).getService();
+                }
+            }
+
+            @Override
+            public void onServiceDisconnected(ComponentName className) {
+                if (className.getClassName().equals("GPSTrackerService")) {
+                    gpsService = null;
+                }
+            }
+        };
+    }
+
+    @SuppressWarnings("deprecation")
+    private boolean isServiceRunning(Class<?> serviceClass) {
+        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (serviceClass.getName().equals(service.service.getClassName())) {
+                Toast.makeText(getApplicationContext(), "TrackMe Service is already running now.", Toast.LENGTH_LONG).show();
+                return true;
+            }
+        }
+        Toast.makeText(getApplicationContext(), "TrackMe Service is not running now. Will be started",
+                Toast.LENGTH_LONG).show();
+        return false;
     }
 
     // Finish main activity and left service working in background
@@ -103,23 +144,4 @@ public class MainActivity extends AppCompatActivity {
                     .show();
         }
     }
-
-
-    private GPSTrackerService gpsService;
-    private ServiceConnection serviceConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName className, IBinder service) {
-            String name = className.getClassName();
-            if (name.endsWith("GPSTrackerService")) {
-                gpsService = ((GPSTrackerService.LocationServiceBinder) service).getService();
-            }
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName className) {
-            if (className.getClassName().equals("GPSTrackerService")) {
-                gpsService = null;
-            }
-        }
-    };
 }

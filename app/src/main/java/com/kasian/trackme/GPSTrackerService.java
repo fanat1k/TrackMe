@@ -37,11 +37,13 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class GPSTrackerService extends IntentService implements GoogleApiClient.ConnectionCallbacks {
     private LocationRequest locationRequest;
     private LocationCallback changeLocationCallback;
     private FusedLocationProviderClient fusedLocationProviderClient;
+    private static AtomicBoolean locationUpdateStatus = new AtomicBoolean(false);
 
     private final IBinder mBinder = new LocationServiceBinder();
 
@@ -68,7 +70,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         super.onStart(intent, startId);
         Log.i(TAG, "onStart");
 
-        Toast.makeText(getApplicationContext(), "GPSTrackerService service has been started.", Toast.LENGTH_LONG).show();
+        Toast.makeText(getApplicationContext(), "TrackMe has been started.", Toast.LENGTH_LONG).show();
 
         initLocationUpdates();
         scheduleLocationUpdates();
@@ -82,8 +84,9 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         startPingRequests();
     }
 
-    // TODO: 12.11.2018 tmp for testing. Make sure that onHandleIntent is run only once!
     private void startPingRequests() {
+        final int PING_TIMEOUT_MILLIS = 60 * 1000;
+
         Runnable pingRequest = new Runnable() {
             @Override
             public void run() {
@@ -91,7 +94,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
                     Log.i(TAG, "GPSTrackerPingThread ping...");
                     saveCoordinates(0, 0);
                     try {
-                        Thread.sleep(60 * 1000);
+                        Thread.sleep(PING_TIMEOUT_MILLIS);
                     } catch (InterruptedException e) {
                         Log.i(TAG, "ERROR:" + e.getMessage());
                     }
@@ -153,6 +156,10 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         }
 
         return stringBuilder.toString();
+    }
+
+    public boolean getLocationUpdatesStatus() {
+        return locationUpdateStatus.get();
     }
 
     private Notification createNotification() {
@@ -228,6 +235,51 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         timer.scheduleAtFixedRate(new StopLocationUpdates(), stopTime, Utils.SCHEDULE_TRACKING_PERIOD);
     }
 
+/*
+    // For testing ...
+    private void scheduleLocationUpdates() {
+        Log.i(TAG, "scheduleLocationUpdates");
+
+        class StartLocationUpdates extends TimerTask {
+            @Override
+            public void run() {
+                startLocationUpdates();
+            }
+        }
+
+        class StopLocationUpdates extends TimerTask {
+            @Override
+            public void run() {
+                stopLocationUpdates();
+            }
+        }
+
+        int SCHEDULE_TRACKING_PERIOD = 3 * 60 * 1000;
+        Date startTime = getStartTime();
+        Date stopTime = getStopTime(startTime);
+
+        Timer timer = new Timer();
+        Log.i(TAG, "Schedule tracking location start at: " + startTime);
+        timer.scheduleAtFixedRate(new StartLocationUpdates(), startTime, SCHEDULE_TRACKING_PERIOD);
+
+        Log.i(TAG, "Schedule tracking location stop at: " + stopTime);
+        timer.scheduleAtFixedRate(new StopLocationUpdates(), stopTime, SCHEDULE_TRACKING_PERIOD);
+    }
+
+    private static Date getStartTime() {
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(Calendar.MINUTE, 2);
+        return calendar.getTime();
+    }
+
+    private static Date getStopTime(Date startTime) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(startTime);
+        calendar.add(Calendar.MINUTE, 2);
+        return calendar.getTime();
+    }
+*/
+
     private void initLocationUpdates() {
         Log.i(TAG, "initLocationUpdates");
 
@@ -243,7 +295,8 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
 
         locationRequest = Utils.createLocationRequest();
 
-        LocationSettingsRequest.Builder locationSettingsBuilder = new LocationSettingsRequest.Builder().addLocationRequest(locationRequest);
+        LocationSettingsRequest.Builder locationSettingsBuilder = new LocationSettingsRequest.Builder()
+                .addLocationRequest(locationRequest);
 
         // Check whether location settings are satisfied
         // https://developers.google.com/android/reference/com/google/android/gms/location/SettingsClient
@@ -270,11 +323,11 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     //TODO(romanpe @2018-10-24): synchronized?
     private synchronized void startLocationUpdates() {
         Log.i(TAG, "Start requesting location updates.");
-
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
 
             fusedLocationProviderClient.requestLocationUpdates(locationRequest, changeLocationCallback, Looper.getMainLooper());
+            locationUpdateStatus.set(true);
         } else {
             Log.e(TAG, "Location permissions turned off");
         }
@@ -284,6 +337,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     private synchronized void stopLocationUpdates() {
         Log.i(TAG, "Stop requesting location updates.");
         fusedLocationProviderClient.removeLocationUpdates(changeLocationCallback);
+        locationUpdateStatus.set(false);
     }
 
     private void saveCoordinates(double latitude, double longitude) {
@@ -305,9 +359,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
             while (!coordinateHolder.isEmpty()) {
                 synchronized (coordinateHolder) {
                     Coordinate coordinate = coordinateHolder.peek();
-                    if (coordinate == null) {
-                        coordinateHolder.poll();
-                    } else {
+                    if (coordinate != null) {
                         if (currentTime - coordinate.getTimestamp() > Utils.COORDINATE_LIVE_TIME) {
                             Log.i(TAG, "Remove coordinate from queue due to timeout:" + coordinate);
                             coordinateHolder.poll();

@@ -37,7 +37,12 @@ public class ServiceActivity extends Activity {
                 mService = binder.getService();
                 mBound = true;
 
-                getAndSendBackCoordinates();
+                String shouldGetLocationUpdatesStatus = getIntent().getStringExtra(Utils.LOCATION_UPDATES_ACTIVE_PARAM);
+                if (shouldGetLocationUpdatesStatus == null) {
+                    getAndSendBackCoordinates();
+                } else {
+                    getAndSendBackLocationUpdatesStatus();
+                }
                 finish();
             }
 
@@ -80,6 +85,15 @@ public class ServiceActivity extends Activity {
         setResult(Activity.RESULT_OK, returnIntent);
     }
 
+    private void getAndSendBackLocationUpdatesStatus() {
+        boolean status = mService.getLocationUpdatesStatus();
+        Log.i(TAG, "getAndSendBackLocationUpdatesStatus=" + status);
+
+        Intent returnIntent = new Intent();
+        returnIntent.putExtra(Utils.LOCATION_UPDATES_ACTIVE_PARAM, String.valueOf(status));
+        setResult(Activity.RESULT_OK, returnIntent);
+    }
+
     private BatteryInfo getBatteryInfo() {
         BatteryInfo batteryInfo = new BatteryInfo();
         IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
@@ -88,6 +102,8 @@ public class ServiceActivity extends Activity {
         if (batteryStatus != null) {
             int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
             int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+
+            // TODO: 21.07.2019 BATTERY_STATUS_FULL (5) will be shown as not charing, it's ok so far
             boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING;
 
             batteryInfo.setBatteryLevel(level);
