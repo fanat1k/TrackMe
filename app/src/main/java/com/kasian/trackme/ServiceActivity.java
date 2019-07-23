@@ -105,7 +105,7 @@ public class ServiceActivity extends Activity {
             int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
             int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
 
-            // TODO: 21.07.2019 BATTERY_STATUS_FULL (5) will be shown as not charing, it's ok so far
+            // BATTERY_STATUS_FULL (5) will be shown as not charing, it's ok so far
             boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING;
 
             batteryInfo.setBatteryLevel(level);
