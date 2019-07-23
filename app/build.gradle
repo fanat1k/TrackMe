@@ -36,4 +36,14 @@ dependencies {
     // dexter runtime permissions
     implementation 'com.karumi:dexter:5.0.0'
 
+    compileOnly 'org.projectlombok:lombok:1.18.8'
+    annotationProcessor 'org.projectlombok:lombok:1.18.8'
+
+/*
+    testCompile group: 'org.powermock', name: 'powermock-api-mockito2', version: '1.6.6'
+    testCompile 'junit:junit:4.12'
+    testCompile 'org.powermock:powermock:1.6.6'
+    testCompile 'org.powermock:powermock-module-junit4:1.6.5'
+    testCompile 'org.powermock:easymock-module-junit4:1.6.5'
+*/
 }

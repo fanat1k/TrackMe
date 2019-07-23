@@ -2,9 +2,9 @@
     <string name="app_name">TrackMe</string>
     <string name="action_settings">Settings</string>
 
-    <!-- TODO: -->
     <string name="channel_name">TrackMe Channel</string>
 
-    <string name="gps_disabled">GPS is disabled</string>
+    <string name="gps_disabled_message">Geolocation (GPS) is turned off now. Please turn it on and run TrackMe again.</string>
+    <string name="gps_open_settings_button">Open Geolocation settings</string>
     <string name="cancel">Cancel</string>
 </resources>

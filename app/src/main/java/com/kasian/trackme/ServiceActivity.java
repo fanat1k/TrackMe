@@ -10,6 +10,8 @@ import android.os.BatteryManager;
 import android.os.IBinder;
 import android.util.Log;
 
+import com.kasian.trackme.data.BatteryInfo;
+
 public class ServiceActivity extends Activity {
     private GPSTrackerService mService;
     private ServiceConnection mConnection;

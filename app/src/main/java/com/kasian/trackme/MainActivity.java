@@ -2,6 +2,7 @@ package com.kasian.trackme;
 
 import android.Manifest;
 import android.app.ActivityManager;
+import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -12,7 +13,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Settings;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.widget.Toast;
@@ -23,6 +23,7 @@ import com.karumi.dexter.listener.PermissionDeniedResponse;
 import com.karumi.dexter.listener.PermissionGrantedResponse;
 import com.karumi.dexter.listener.PermissionRequest;
 import com.karumi.dexter.listener.single.PermissionListener;
+import com.kasian.trackme.property.Properties;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "GPSTracker:MainActivity";
@@ -32,7 +33,11 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        checkPermissionsAndStartGpsService();
+        Properties.init(this);
+
+        if (isGpsEnabled()) {
+            checkPermissionsAndStartGpsService();
+        }
     }
 
     private void startGpsTrackerService() {
@@ -92,7 +97,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void checkPermissionsAndStartGpsService() {
         Log.i(TAG, "checkPermissionsAndStartGpsService");
-
         Dexter.withActivity(this)
                 .withPermission(Manifest.permission.ACCESS_FINE_LOCATION)
                 .withListener(new PermissionListener() {
@@ -126,22 +130,33 @@ public class MainActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
-    // TODO: 11.03.2019 later add checking (need to tune this method)
-    private void isGpsEnabled() {
+    private boolean isGpsEnabled() {
         LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        boolean gps_enabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
-        if (!gps_enabled) {
+        if (lm == null) {
+            Log.e(TAG, "LocationManager is null");
+            return true;
+        }
+
+        if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            return true;
+        } else {
             // notify user
             new AlertDialog.Builder(this)
-                    .setMessage(R.string.gps_disabled)
-                    .setPositiveButton(R.string.gps_disabled, new DialogInterface.OnClickListener() {
+                    .setMessage(R.string.gps_disabled_message)
+                    .setPositiveButton(R.string.gps_open_settings_button, new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface paramDialogInterface, int paramInt) {
                             startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
                         }
                     })
-                    .setNegativeButton(R.string.cancel, null)
+                    .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface paramDialogInterface, int paramInt) {
+                            finishMainActivity();
+                        }
+                    })
                     .show();
+            return false;
         }
     }
 }

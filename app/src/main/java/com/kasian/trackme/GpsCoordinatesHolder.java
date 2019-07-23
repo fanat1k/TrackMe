@@ -1,5 +1,7 @@
 package com.kasian.trackme;
 
+import com.kasian.trackme.data.Coordinate;
+
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class GpsCoordinatesHolder {

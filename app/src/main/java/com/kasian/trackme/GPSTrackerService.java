@@ -10,6 +10,7 @@ import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Binder;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.support.annotation.NonNull;
@@ -30,11 +31,9 @@ import com.google.android.gms.location.SettingsClient;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.kasian.trackme.data.Coordinate;
+import com.kasian.trackme.property.Properties;
 
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -43,6 +42,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     private LocationRequest locationRequest;
     private LocationCallback changeLocationCallback;
     private FusedLocationProviderClient fusedLocationProviderClient;
+    private Handler handler = new Handler();
     private static AtomicBoolean locationUpdateStatus = new AtomicBoolean(false);
 
     private final IBinder mBinder = new LocationServiceBinder();
@@ -144,14 +144,13 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
             if (coordinate != null) {
                 stringBuilder
                         .append(coordinate.getDate())
-                        .append(Utils.DELIMITER)
+                        .append(Properties.delimiter)
                         .append(coordinate.getTime())
-                        .append(Utils.DELIMITER)
+                        .append(Properties.delimiter)
                         .append(coordinate.getLatitude())
-                        .append(Utils.DELIMITER)
+                        .append(Properties.delimiter)
                         .append(coordinate.getLongitude())
-                        .append("\n")
-                ;
+                        .append("\n");
             }
         }
 
@@ -192,93 +191,38 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         }
     }
 
-    ////////////////////////////////////////////////////////////////////////////////////////////////
     private void scheduleLocationUpdates() {
         Log.i(TAG, "scheduleLocationUpdates");
 
-        class StartLocationUpdates extends TimerTask {
-            @Override
-            public void run() {
-                startLocationUpdates();
-            }
-        }
-
-        class StopLocationUpdates extends TimerTask {
-            @Override
-            public void run() {
-                stopLocationUpdates();
-            }
-        }
-
-        Date startTime = Utils.getRunTime(Utils.START_TRACKING_TIME);
-        Date stopTime = Utils.getRunTime(Utils.STOP_TRACKING_TIME);
-        Date currentTime = Calendar.getInstance().getTime();
-
-        if (currentTime.after(stopTime)) {
-            stopTime = Utils.addOneDay(stopTime);
-        }
-
-        if (currentTime.after(startTime)) {
-            startTime = Utils.addOneDay(startTime);
-
-            if (currentTime.before(stopTime)) {
-                // TODO: 02.03.2019 run in another thread?
-                startLocationUpdates();
-            }
-        }
-
-        Timer timer = new Timer();
-        Log.i(TAG, "Schedule tracking location start at: " + startTime);
-        timer.scheduleAtFixedRate(new StartLocationUpdates(), startTime, Utils.SCHEDULE_TRACKING_PERIOD);
-
-        Log.i(TAG, "Schedule tracking location stop at: " + stopTime);
-        timer.scheduleAtFixedRate(new StopLocationUpdates(), stopTime, Utils.SCHEDULE_TRACKING_PERIOD);
+        long delay = Utils.calculateStartDelay();
+        logDelay("DELAY_START_INITIAL=", delay);
+        handler.postDelayed(stopGpsTracker, delay);
     }
 
-/*
-    // For testing ...
-    private void scheduleLocationUpdates() {
-        Log.i(TAG, "scheduleLocationUpdates");
-
-        class StartLocationUpdates extends TimerTask {
-            @Override
-            public void run() {
-                startLocationUpdates();
-            }
+    private Runnable startGpsTracker = new Runnable() {
+        @Override
+        public void run() {
+            startLocationUpdates();
+            long delay = Utils.calculateStopDelay();
+            logDelay("DELAY_STOP=", delay);
+            handler.postDelayed(stopGpsTracker, delay);
         }
-
-        class StopLocationUpdates extends TimerTask {
-            @Override
-            public void run() {
-                stopLocationUpdates();
-            }
+    };
+    private Runnable stopGpsTracker = new Runnable() {
+        @Override
+        public void run() {
+            stopLocationUpdates();
+            long delay = Utils.calculateStartDelay();
+            logDelay("DELAY_START=", delay);
+            handler.postDelayed(startGpsTracker, delay);
         }
+    };
 
-        int SCHEDULE_TRACKING_PERIOD = 3 * 60 * 1000;
-        Date startTime = getStartTime();
-        Date stopTime = getStopTime(startTime);
-
-        Timer timer = new Timer();
-        Log.i(TAG, "Schedule tracking location start at: " + startTime);
-        timer.scheduleAtFixedRate(new StartLocationUpdates(), startTime, SCHEDULE_TRACKING_PERIOD);
-
-        Log.i(TAG, "Schedule tracking location stop at: " + stopTime);
-        timer.scheduleAtFixedRate(new StopLocationUpdates(), stopTime, SCHEDULE_TRACKING_PERIOD);
+    private void logDelay(String message, long delay) {
+        long hours = TimeUnit.MILLISECONDS.toHours(delay);
+        Log.i(TAG, String.format("%s %d ms : %d hours %d mins", message, delay, hours,
+                TimeUnit.MILLISECONDS.toMinutes(delay) - TimeUnit.HOURS.toMinutes(hours)));
     }
-
-    private static Date getStartTime() {
-        Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.MINUTE, 2);
-        return calendar.getTime();
-    }
-
-    private static Date getStopTime(Date startTime) {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(startTime);
-        calendar.add(Calendar.MINUTE, 2);
-        return calendar.getTime();
-    }
-*/
 
     private void initLocationUpdates() {
         Log.i(TAG, "initLocationUpdates");
@@ -360,7 +304,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
                 synchronized (coordinateHolder) {
                     Coordinate coordinate = coordinateHolder.peek();
                     if (coordinate != null) {
-                        if (currentTime - coordinate.getTimestamp() > Utils.COORDINATE_LIVE_TIME) {
+                        if (currentTime - coordinate.getTimestamp() > Properties.coordinateLiveTime) {
                             Log.i(TAG, "Remove coordinate from queue due to timeout:" + coordinate);
                             coordinateHolder.poll();
                         } else {

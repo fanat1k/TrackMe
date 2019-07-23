@@ -1,51 +1,69 @@
 package com.kasian.trackme;
 
 import com.google.android.gms.location.LocationRequest;
+import com.kasian.trackme.property.Properties;
 
 import java.util.Calendar;
 import java.util.Date;
 
 public class Utils {
-    public static final int START_TRACKING_TIME = 8;     // 8AM
-    public static final int STOP_TRACKING_TIME = 21;     // 9PM
-
-    public static final int SCHEDULE_TRACKING_PERIOD = 60*60*24*1000;   // 24 hours
-    public static final long COORDINATE_LIVE_TIME = 60*60*24*1000;      // 24 hours
-
     public static final String COORDINATES_PARAM = "coordinates";
     public static final String BATTERY_LEVEL_PARAM = "battery_level";
     public static final String LOCATION_UPDATES_ACTIVE_PARAM = "location_updates_active";
     public static final String BATTERY_IS_CHARGING_PARAM = "battery_is_charging";
     public static final String NOTIFICATION_CHANNEL_ID = "track_me_channel_id";
-    public static final String DELIMITER = ";";
 
-    private static final long LOCATION_REQUEST_UPDATE_INTERVAL = 10 * 1000;     // 10 secs
-    private static final long LOCATION_REQUEST_FASTEST_INTERVAL = 5 * 1000;     //  5 secs
+    // TODO: 23.07.2019 test coverage
+    static long calculateStartDelay() {
+        Date startTime = getRunTime(Properties.startTrackingTime);
+        Date stopTime = getRunTime(Properties.stopTrackingTime);
+        Date currentTime = Calendar.getInstance().getTime();
 
-    public static Date addOneDay(Date time) {
+        long delay = 0;
+        if (currentTime.before(startTime)) {
+            delay = startTime.getTime() - currentTime.getTime();
+        } else if (currentTime.after(stopTime)){
+            Date nextDate = addOneDay(startTime);
+            return nextDate.getTime() - currentTime.getTime();
+        }
+        return delay;
+    }
+
+    // TODO: 23.07.2019 test coverage
+    static long calculateStopDelay() {
+        Date stopTime = getRunTime(Properties.stopTrackingTime);
+        Date currentTime = Calendar.getInstance().getTime();
+
+        if (currentTime.before(stopTime)) {
+            return stopTime.getTime() - currentTime.getTime();
+        } else {
+            Date nextDate = addOneDay(stopTime);
+            return nextDate.getTime() - currentTime.getTime();
+        }
+    }
+
+    public static LocationRequest createLocationRequest() {
+        LocationRequest locationRequest = LocationRequest.create();
+
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        locationRequest.setInterval(Properties.locationRequestUpdateIntervalMillis);
+        locationRequest.setFastestInterval(Properties.locationRequestFastestIntervalMillis);
+        return locationRequest;
+    }
+
+    private static Date addOneDay(Date time) {
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(time);
         calendar.add(Calendar.DATE, 1);
         return calendar.getTime();
     }
 
-    public static Date getRunTime(int runHour) {
+    private static Date getRunTime(int runHour) {
         Calendar calendar = Calendar.getInstance();
         calendar.set(Calendar.HOUR_OF_DAY, runHour);
         calendar.set(Calendar.MINUTE, 0);
         calendar.set(Calendar.SECOND, 0);
 
         return calendar.getTime();
-    }
-
-    public static LocationRequest createLocationRequest() {
-        LocationRequest locationRequest = LocationRequest.create();
-
-        //TODO: check if WiFi is used in case of PRIORITY_HIGH_ACCURACY
-        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        locationRequest.setInterval(LOCATION_REQUEST_UPDATE_INTERVAL);
-        locationRequest.setFastestInterval(LOCATION_REQUEST_FASTEST_INTERVAL);
-
-        return locationRequest;
     }
 }

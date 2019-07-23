@@ -1,8 +1,13 @@
-package com.kasian.trackme;
+package com.kasian.trackme.data;
 
 import java.text.SimpleDateFormat;
 import java.util.Locale;
 
+import lombok.Getter;
+import lombok.ToString;
+
+@Getter
+@ToString
 public class Coordinate {
     private final long timestamp;
     private final double latitude;
@@ -17,32 +22,11 @@ public class Coordinate {
         this.longitude = longitude;
     }
 
-    public long getTimestamp() {
-        return timestamp;
-    }
-
-    public double getLatitude() {
-        return latitude;
-    }
-
-    public double getLongitude() {
-        return longitude;
-    }
-
     public String getDate() {
         return simpleDateFormat.format(timestamp);
     }
 
     public String getTime() {
         return simpleTimeFormat.format(timestamp);
-    }
-
-    @Override
-    public String toString() {
-        return "Coordinate{" +
-                "timestamp=" + timestamp +
-                ", latitude=" + latitude +
-                ", longitude=" + longitude +
-                '}';
     }
 }
