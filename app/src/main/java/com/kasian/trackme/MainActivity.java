@@ -9,7 +9,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.location.LocationManager;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Settings;
@@ -27,6 +26,9 @@ import com.kasian.trackme.property.Properties;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "TrackMe:MainActivity";
+
+    private GPSTrackerService gpsService;
+    private ServiceConnection serviceConnection;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,9 +55,6 @@ public class MainActivity extends AppCompatActivity {
             this.getApplication().bindService(service, serviceConnection, Context.BIND_AUTO_CREATE);
         }
     }
-
-    private GPSTrackerService gpsService;
-    private ServiceConnection serviceConnection;
 
     private void startServiceConnector() {
         serviceConnection = new ServiceConnection() {
@@ -90,12 +89,6 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
-    // Finish main activity and left service working in background
-    private void finishMainActivity() {
-        Log.i(TAG, "Finish main activity.");
-        finish();
-    }
-
     private void checkPermissionsAndStartGpsService() {
         Log.i(TAG, "checkPermissionsAndStartGpsService");
         Dexter.withActivity(this)
@@ -110,9 +103,11 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void onPermissionDenied(PermissionDeniedResponse response) {
-                        Log.w(TAG, "Location permissions disabled. Requesting location permissions.");
+                        Log.w(TAG, "Location permissions are disabled.");
                         if (response.isPermanentlyDenied()) {
-                            openSettings();
+                            Toast.makeText(getApplicationContext(),
+                                    "Location permissions are disabled. Please turn it on.",
+                                    Toast.LENGTH_LONG).show();
                         }
                     }
 
@@ -123,18 +118,10 @@ public class MainActivity extends AppCompatActivity {
                 }).check();
     }
 
-    private void openSettings() {
-        Intent intent = new Intent();
-        intent.setAction( Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        intent.setData(Uri.fromParts("package", BuildConfig.APPLICATION_ID, null));
-        startActivity(intent);
-    }
-
     private boolean isGpsEnabled() {
         LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         if (lm == null) {
-            Log.e(TAG, "LocationManager is null");
+            Log.e(TAG, "LocationManager is null. Can't check if GPS is enabled.");
             return true;
         }
 
@@ -159,5 +146,11 @@ public class MainActivity extends AppCompatActivity {
                     .show();
             return false;
         }
+    }
+
+    // Finish main activity and let service working in background
+    private void finishMainActivity() {
+        Log.i(TAG, "Finish main activity.");
+        finish();
     }
 }

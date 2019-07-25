@@ -73,36 +73,18 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
 
         initLocationUpdates();
         scheduleLocationUpdates();
-
         scheduleCoordinatesCleaner();
     }
 
     @Override
     protected void onHandleIntent(@Nullable Intent intent) {
         Log.i(TAG, "onHandleIntent");
-        startPingRequests();
+        startLivenessRequests();
     }
 
-    private void startPingRequests() {
-        if (Properties.pingTimeoutMillis == 0) {
-            return;
-        }
-
-        Runnable pingRequest = new Runnable() {
-            @Override
-            public void run() {
-                while (true) {
-                    Log.i(TAG, "GPSTrackerPingThread ping...");
-                    saveCoordinates(0, 0);
-                    try {
-                        Thread.sleep(Properties.pingTimeoutMillis);
-                    } catch (InterruptedException e) {
-                        Log.i(TAG, "ERROR:" + e.getMessage());
-                    }
-                }
-            }
-        };
-        Executors.newSingleThreadExecutor().submit(pingRequest);
+    @Override
+    public IBinder onBind(Intent intent) {
+        return mBinder;
     }
 
     @Override
@@ -112,11 +94,6 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     @Override
     public void onConnectionSuspended(int i) {
         Log.i(TAG, "onConnectionSuspended");
-    }
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        return mBinder;
     }
 
     public String getAllCoordinates() {
@@ -139,7 +116,6 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
                         .append("\n");
             }
         }
-
         return stringBuilder.toString();
     }
 
@@ -183,33 +159,26 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         final Runnable updateLocationChecker = new Runnable() {
             @Override
             public void run() {
-                while (true) {
-                    Log.i(TAG, "LOCATION_CHECKER_START");
-                    Date currentTime = Utils.getCurrentTime();
-                    Date startTime = Utils.getTime(Properties.startTrackingTime);
-                    Date stopTime = Utils.getTime(Properties.stopTrackingTime);
+                Log.i(TAG, "start location checker");
+                Date currentTime = Utils.getCurrentTime();
+                Date startTime = Utils.getTime(Properties.startTrackingHour, Properties.startTrackingMin);
+                Date stopTime = Utils.getTime(Properties.stopTrackingHour, Properties.stopTrackingMin);
 
-                    if (currentTime.after(startTime) && currentTime.before(stopTime)) {
-                        Log.i(TAG, "LOCATION_CHECKER_IS_RUNNING. status = " + locationUpdateStatus.get());
-                        if (!locationUpdateStatus.get()) {
-                            startLocationUpdates();
-                        }
-                    } else {
-                        Log.i(TAG, "LOCATION_CHECKER_IS_STOPPED. status = " + locationUpdateStatus.get());
-                        if (locationUpdateStatus.get()) {
-                            stopLocationUpdates();
-                        }
+                if (currentTime.after(startTime) && currentTime.before(stopTime)) {
+                    Log.i(TAG, "location checker is running? status = " + locationUpdateStatus.get());
+                    if (!locationUpdateStatus.get()) {
+                        startLocationUpdates();
                     }
-
-                    try {
-                        Thread.sleep(Properties.updateLocationCheckerMillis);
-                    } catch (InterruptedException e) {
-                        Log.i(TAG, "ERROR:" + e.getMessage());
+                } else {
+                    Log.i(TAG, "location checker is stopped? status = " + locationUpdateStatus.get());
+                    if (locationUpdateStatus.get()) {
+                        stopLocationUpdates();
                     }
                 }
             }
         };
-        Executors.newSingleThreadExecutor().submit(updateLocationChecker);
+        Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(
+                updateLocationChecker, 0, Properties.updateLocationCheckerMin, TimeUnit.MINUTES);
     }
 
     private void initLocationUpdates() {
@@ -279,8 +248,23 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     }
 
     private void scheduleCoordinatesCleaner() {
+        Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(new CoordinateHolderCleanerThread(),
+                Properties.cleanCoordinatesDelayHour, Properties.cleanCoordinatesPeriodHour, TimeUnit.HOURS);
+    }
+
+    private void startLivenessRequests() {
+        if (Properties.checkLivenessPeriodMin == 0) {
+            return;
+        }
+
         Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(
-                new CoordinateHolderCleanerThread(), 24, 1, TimeUnit.HOURS);
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        Log.i(TAG, "GPSTrackerPingThread is alive");
+                        saveCoordinates(0, 0);
+                    }
+                }, 0, Properties.checkLivenessPeriodMin, TimeUnit.MINUTES);
     }
 
     private class CoordinateHolderCleanerThread implements Runnable {

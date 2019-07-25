@@ -25,7 +25,6 @@ public class ServiceActivity extends Activity {
         Log.i(TAG,"onStart");
 
         String shouldGetBatteryLevel = getIntent().getStringExtra(Utils.BATTERY_LEVEL_PARAM);
-        Log.i(TAG, "get_battery_level=" + shouldGetBatteryLevel);
         if (shouldGetBatteryLevel != null) {
             getAndSendBackBatteryInfo();
             finish();
@@ -77,6 +76,15 @@ public class ServiceActivity extends Activity {
         setResult(Activity.RESULT_OK, returnIntent);
     }
 
+    private void getAndSendBackLocationUpdatesStatus() {
+        boolean status = mService.getLocationUpdatesStatus();
+        Log.i(TAG, "getAndSendBackLocationUpdatesStatus=" + status);
+
+        Intent returnIntent = new Intent();
+        returnIntent.putExtra(Utils.LOCATION_UPDATES_ACTIVE_PARAM, String.valueOf(status));
+        setResult(Activity.RESULT_OK, returnIntent);
+    }
+
     private void getAndSendBackBatteryInfo() {
         BatteryInfo batteryInfo = getBatteryInfo();
         Log.i(TAG, "getAndSendBackBatteryInfo=" + batteryInfo);
@@ -84,15 +92,6 @@ public class ServiceActivity extends Activity {
         Intent returnIntent = new Intent();
         returnIntent.putExtra(Utils.BATTERY_LEVEL_PARAM, String.valueOf(batteryInfo.getBatteryLevel()));
         returnIntent.putExtra(Utils.BATTERY_IS_CHARGING_PARAM, String.valueOf(batteryInfo.isCharging()));
-        setResult(Activity.RESULT_OK, returnIntent);
-    }
-
-    private void getAndSendBackLocationUpdatesStatus() {
-        boolean status = mService.getLocationUpdatesStatus();
-        Log.i(TAG, "getAndSendBackLocationUpdatesStatus=" + status);
-
-        Intent returnIntent = new Intent();
-        returnIntent.putExtra(Utils.LOCATION_UPDATES_ACTIVE_PARAM, String.valueOf(status));
         setResult(Activity.RESULT_OK, returnIntent);
     }
 

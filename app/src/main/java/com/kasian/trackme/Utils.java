@@ -22,12 +22,11 @@ public class Utils {
         return locationRequest;
     }
 
-    public static Date getTime(int runHour) {
+    public static Date getTime(int hour, int min) {
         Calendar calendar = Calendar.getInstance();
-        calendar.set(Calendar.HOUR_OF_DAY, runHour);
-        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.HOUR_OF_DAY, hour);
+        calendar.set(Calendar.MINUTE, min);
         calendar.set(Calendar.SECOND, 0);
-
         return calendar.getTime();
     }
 
