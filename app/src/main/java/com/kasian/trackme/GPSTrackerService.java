@@ -165,12 +165,12 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
                 Date stopTime = Utils.getTime(Properties.stopTrackingHour, Properties.stopTrackingMin);
 
                 if (currentTime.after(startTime) && currentTime.before(stopTime)) {
-                    Log.i(TAG, "location checker is running? status = " + locationUpdateStatus.get());
+                    Log.i(TAG, "is location checker running? status = " + locationUpdateStatus.get());
                     if (!locationUpdateStatus.get()) {
                         startLocationUpdates();
                     }
                 } else {
-                    Log.i(TAG, "location checker is stopped? status = " + locationUpdateStatus.get());
+                    Log.i(TAG, "is location checker stopped? status = " + locationUpdateStatus.get());
                     if (locationUpdateStatus.get()) {
                         stopLocationUpdates();
                     }
