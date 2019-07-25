@@ -17,7 +17,7 @@ public class ServiceActivity extends Activity {
     private ServiceConnection mConnection;
     private static boolean mBound = false;
 
-    private static final String TAG = "GPSTracker:ServiceActivity";
+    private static final String TAG = "TrackMe:ServiceActivity";
 
     @Override
     protected void onStart() {

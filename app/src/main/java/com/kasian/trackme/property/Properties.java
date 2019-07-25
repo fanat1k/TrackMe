@@ -8,6 +8,8 @@ public class Properties {
     public static long locationRequestUpdateIntervalMillis;
     public static long locationRequestFastestIntervalMillis;
     public static long coordinateLiveTime;
+    public static long pingTimeoutMillis;
+    public static long updateLocationCheckerMillis;
     public static String delimiter;
 
     public static void init(Context context) {
@@ -22,7 +24,20 @@ public class Properties {
                 propertyReader.getProperty("LOCATION_REQUEST_FASTEST_INTERVAL_MILLIS"));
 
         coordinateLiveTime = Long.valueOf(propertyReader.getProperty("COORDINATE_LIVE_TIME"));
+        pingTimeoutMillis = Long.valueOf(propertyReader.getProperty("PING_TIMEOUT_MILLIS"));
+        updateLocationCheckerMillis = Long.valueOf(propertyReader.getProperty("UPDATE_LOCATION_CHECKER_MILLIS"));
 
         delimiter = propertyReader.getProperty("DELIMITER");
+    }
+
+    public static String print() {
+        return "\nstartTrackingTime" + "=" + startTrackingTime +
+                "\nstopTrackingTime" + "=" + stopTrackingTime +
+                "\nlocationRequestUpdateIntervalMillis" + "=" + locationRequestUpdateIntervalMillis +
+                "\nlocationRequestFastestIntervalMillis" + "=" + locationRequestFastestIntervalMillis +
+                "\ncoordinateLiveTime" + "=" + coordinateLiveTime +
+                "\npingTimeoutMillis" + "=" + pingTimeoutMillis +
+                "\nupdateLocationCheckerMillis" + "=" + updateLocationCheckerMillis +
+                "\ndelimiter" + "=" + delimiter;
     }
 }

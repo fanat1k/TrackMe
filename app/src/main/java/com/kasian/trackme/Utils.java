@@ -13,35 +13,6 @@ public class Utils {
     public static final String BATTERY_IS_CHARGING_PARAM = "battery_is_charging";
     public static final String NOTIFICATION_CHANNEL_ID = "track_me_channel_id";
 
-    // TODO: 23.07.2019 test coverage
-    static long calculateStartDelay() {
-        Date startTime = getRunTime(Properties.startTrackingTime);
-        Date stopTime = getRunTime(Properties.stopTrackingTime);
-        Date currentTime = Calendar.getInstance().getTime();
-
-        long delay = 0;
-        if (currentTime.before(startTime)) {
-            delay = startTime.getTime() - currentTime.getTime();
-        } else if (currentTime.after(stopTime)){
-            Date nextDate = addOneDay(startTime);
-            return nextDate.getTime() - currentTime.getTime();
-        }
-        return delay;
-    }
-
-    // TODO: 23.07.2019 test coverage
-    static long calculateStopDelay() {
-        Date stopTime = getRunTime(Properties.stopTrackingTime);
-        Date currentTime = Calendar.getInstance().getTime();
-
-        if (currentTime.before(stopTime)) {
-            return stopTime.getTime() - currentTime.getTime();
-        } else {
-            Date nextDate = addOneDay(stopTime);
-            return nextDate.getTime() - currentTime.getTime();
-        }
-    }
-
     public static LocationRequest createLocationRequest() {
         LocationRequest locationRequest = LocationRequest.create();
 
@@ -51,19 +22,16 @@ public class Utils {
         return locationRequest;
     }
 
-    private static Date addOneDay(Date time) {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(time);
-        calendar.add(Calendar.DATE, 1);
-        return calendar.getTime();
-    }
-
-    private static Date getRunTime(int runHour) {
+    public static Date getTime(int runHour) {
         Calendar calendar = Calendar.getInstance();
         calendar.set(Calendar.HOUR_OF_DAY, runHour);
         calendar.set(Calendar.MINUTE, 0);
         calendar.set(Calendar.SECOND, 0);
 
         return calendar.getTime();
+    }
+
+    public static Date getCurrentTime() {
+        return Calendar.getInstance().getTime();
     }
 }

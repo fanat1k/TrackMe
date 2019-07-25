@@ -26,7 +26,7 @@ import com.karumi.dexter.listener.single.PermissionListener;
 import com.kasian.trackme.property.Properties;
 
 public class MainActivity extends AppCompatActivity {
-    private static final String TAG = "GPSTracker:MainActivity";
+    private static final String TAG = "TrackMe:MainActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,6 +34,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         Properties.init(this);
+        Log.i(TAG, Properties.print());
 
         if (isGpsEnabled()) {
             checkPermissionsAndStartGpsService();

@@ -10,7 +10,6 @@ import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Binder;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.support.annotation.NonNull;
@@ -34,6 +33,7 @@ import com.google.android.gms.tasks.Task;
 import com.kasian.trackme.data.Coordinate;
 import com.kasian.trackme.property.Properties;
 
+import java.util.Date;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,14 +42,13 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     private LocationRequest locationRequest;
     private LocationCallback changeLocationCallback;
     private FusedLocationProviderClient fusedLocationProviderClient;
-    private Handler handler = new Handler();
     private static AtomicBoolean locationUpdateStatus = new AtomicBoolean(false);
 
     private final IBinder mBinder = new LocationServiceBinder();
 
     private static final GpsCoordinatesHolder coordinateHolder = GpsCoordinatesHolder.getInstance();
 
-    private static final String TAG = "GPSTracker:GPSTrackerService";
+    private static final String TAG = "TrackMe:GPSTrackerService";
 
     public GPSTrackerService() {
         super(TAG);
@@ -85,7 +84,9 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     }
 
     private void startPingRequests() {
-        final int PING_TIMEOUT_MILLIS = 60 * 1000;
+        if (Properties.pingTimeoutMillis == 0) {
+            return;
+        }
 
         Runnable pingRequest = new Runnable() {
             @Override
@@ -94,7 +95,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
                     Log.i(TAG, "GPSTrackerPingThread ping...");
                     saveCoordinates(0, 0);
                     try {
-                        Thread.sleep(PING_TIMEOUT_MILLIS);
+                        Thread.sleep(Properties.pingTimeoutMillis);
                     } catch (InterruptedException e) {
                         Log.i(TAG, "ERROR:" + e.getMessage());
                     }
@@ -111,21 +112,6 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     @Override
     public void onConnectionSuspended(int i) {
         Log.i(TAG, "onConnectionSuspended");
-    }
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        Log.i(TAG, "onDestroy");
-    }
-    @Override
-    public void onTaskRemoved(Intent rootIntent) {
-        super.onTaskRemoved(rootIntent);
-        Log.i(TAG, "onTaskRemoved");
-    }
-    @Override
-    public void onLowMemory() {
-        super.onLowMemory();
-        Log.i(TAG, "onLowMemory");
     }
 
     @Override
@@ -194,34 +180,36 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     private void scheduleLocationUpdates() {
         Log.i(TAG, "scheduleLocationUpdates");
 
-        long delay = Utils.calculateStartDelay();
-        logDelay("DELAY_START_INITIAL=", delay);
-        handler.postDelayed(stopGpsTracker, delay);
-    }
+        final Runnable updateLocationChecker = new Runnable() {
+            @Override
+            public void run() {
+                while (true) {
+                    Log.i(TAG, "LOCATION_CHECKER_START");
+                    Date currentTime = Utils.getCurrentTime();
+                    Date startTime = Utils.getTime(Properties.startTrackingTime);
+                    Date stopTime = Utils.getTime(Properties.stopTrackingTime);
 
-    private Runnable startGpsTracker = new Runnable() {
-        @Override
-        public void run() {
-            startLocationUpdates();
-            long delay = Utils.calculateStopDelay();
-            logDelay("DELAY_STOP=", delay);
-            handler.postDelayed(stopGpsTracker, delay);
-        }
-    };
-    private Runnable stopGpsTracker = new Runnable() {
-        @Override
-        public void run() {
-            stopLocationUpdates();
-            long delay = Utils.calculateStartDelay();
-            logDelay("DELAY_START=", delay);
-            handler.postDelayed(startGpsTracker, delay);
-        }
-    };
+                    if (currentTime.after(startTime) && currentTime.before(stopTime)) {
+                        Log.i(TAG, "LOCATION_CHECKER_IS_RUNNING. status = " + locationUpdateStatus.get());
+                        if (!locationUpdateStatus.get()) {
+                            startLocationUpdates();
+                        }
+                    } else {
+                        Log.i(TAG, "LOCATION_CHECKER_IS_STOPPED. status = " + locationUpdateStatus.get());
+                        if (locationUpdateStatus.get()) {
+                            stopLocationUpdates();
+                        }
+                    }
 
-    private void logDelay(String message, long delay) {
-        long hours = TimeUnit.MILLISECONDS.toHours(delay);
-        Log.i(TAG, String.format("%s %d ms : %d hours %d mins", message, delay, hours,
-                TimeUnit.MILLISECONDS.toMinutes(delay) - TimeUnit.HOURS.toMinutes(hours)));
+                    try {
+                        Thread.sleep(Properties.updateLocationCheckerMillis);
+                    } catch (InterruptedException e) {
+                        Log.i(TAG, "ERROR:" + e.getMessage());
+                    }
+                }
+            }
+        };
+        Executors.newSingleThreadExecutor().submit(updateLocationChecker);
     }
 
     private void initLocationUpdates() {
