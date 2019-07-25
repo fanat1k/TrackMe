@@ -276,7 +276,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
                 synchronized (coordinateHolder) {
                     Coordinate coordinate = coordinateHolder.peek();
                     if (coordinate != null) {
-                        if (currentTime - coordinate.getTimestamp() > Properties.coordinateLiveTime) {
+                        if (currentTime - coordinate.getTimestamp() > Properties.coordinateLiveTimeMillis) {
                             Log.i(TAG, "Remove coordinate from queue due to timeout:" + coordinate);
                             coordinateHolder.poll();
                         } else {

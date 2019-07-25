@@ -9,7 +9,7 @@ public class Properties {
     public static int stopTrackingMin;
     public static long locationRequestUpdateIntervalMillis;
     public static long locationRequestFastestIntervalMillis;
-    public static long coordinateLiveTime;
+    public static long coordinateLiveTimeMillis;
     public static long cleanCoordinatesDelayHour;
     public static long cleanCoordinatesPeriodHour;
     public static long checkLivenessPeriodMin;
@@ -29,7 +29,7 @@ public class Properties {
         locationRequestFastestIntervalMillis = Long.valueOf(
                 propertyReader.getProperty("LOCATION_REQUEST_FASTEST_INTERVAL_MILLIS"));
 
-        coordinateLiveTime = Long.valueOf(propertyReader.getProperty("COORDINATE_LIVE_TIME"));
+        coordinateLiveTimeMillis = Long.valueOf(propertyReader.getProperty("COORDINATE_LIVE_TIME_MILLIS"));
         cleanCoordinatesDelayHour = Long.valueOf(propertyReader.getProperty("CLEAN_COORDINATES_DELAY_HOUR"));
         cleanCoordinatesPeriodHour = Long.valueOf(propertyReader.getProperty("CLEAN_COORDINATES_PERIOD_HOUR"));
 
@@ -46,7 +46,7 @@ public class Properties {
                 "\nstopTrackingMin" + "=" + stopTrackingMin +
                 "\nlocationRequestUpdateIntervalMillis" + "=" + locationRequestUpdateIntervalMillis +
                 "\nlocationRequestFastestIntervalMillis" + "=" + locationRequestFastestIntervalMillis +
-                "\ncoordinateLiveTime" + "=" + coordinateLiveTime +
+                "\ncoordinateLiveTimeMillis" + "=" + coordinateLiveTimeMillis +
                 "\ncleanCoordinatesDelayHour" + "=" + cleanCoordinatesDelayHour +
                 "\ncleanCoordinatesPeriodHour" + "=" + cleanCoordinatesPeriodHour +
                 "\nupdateLocationCheckerMin" + "=" + updateLocationCheckerMin +
