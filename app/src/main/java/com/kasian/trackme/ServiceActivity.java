@@ -24,7 +24,16 @@ public class ServiceActivity extends Activity {
         super.onStart();
         Log.i(TAG,"onStart");
 
-        String shouldGetBatteryLevel = getIntent().getStringExtra(Utils.BATTERY_LEVEL_PARAM);
+        String server = getIntent().getStringExtra(Utils.PARAM_COORDINATE_SERVER);
+        String user = getIntent().getStringExtra(Utils.PARAM_USER);
+        String password = getIntent().getStringExtra(Utils.PARAM_PASSWORD);
+
+        if (server != null && user != null && password != null) {
+            setCoordinateServerParams(server, user, password);
+            finish();
+        }
+
+        String shouldGetBatteryLevel = getIntent().getStringExtra(Utils.PARAM_BATTERY_LEVEL);
         if (shouldGetBatteryLevel != null) {
             getAndSendBackBatteryInfo();
             finish();
@@ -38,10 +47,8 @@ public class ServiceActivity extends Activity {
                 mService = binder.getService();
                 mBound = true;
 
-                String shouldGetLocationUpdatesStatus = getIntent().getStringExtra(Utils.LOCATION_UPDATES_ACTIVE_PARAM);
-                if (shouldGetLocationUpdatesStatus == null) {
-                    getAndSendBackCoordinates();
-                } else {
+                String shouldGetLocationUpdatesStatus = getIntent().getStringExtra(Utils.PARAM_LOCATION_UPDATES_ACTIVE);
+                if (shouldGetLocationUpdatesStatus != null) {
                     getAndSendBackLocationUpdatesStatus();
                 }
                 finish();
@@ -67,12 +74,15 @@ public class ServiceActivity extends Activity {
         }
     }
 
-    private void getAndSendBackCoordinates() {
-        String coordinates = mService.getAllCoordinates();
-        Log.i(TAG, "getAndSendBackCoordinates");
+    private void setCoordinateServerParams(String server, String user, String password) {
+        Log.i(TAG, "setCoordinateServerParams:server=" + server + ";user=" + user);
+        CoordinateServerInfo coordinateServerInfo = CoordinateServerInfo.getInstance();
+        coordinateServerInfo.setCoordinateServer(server);
+        coordinateServerInfo.setUser(user);
+        coordinateServerInfo.setPassword(password);
 
         Intent returnIntent = new Intent();
-        returnIntent.putExtra(Utils.COORDINATES_PARAM, coordinates);
+        returnIntent.putExtra(Utils.PARAM_RESPONSE_OK, "ok");
         setResult(Activity.RESULT_OK, returnIntent);
     }
 
@@ -81,7 +91,7 @@ public class ServiceActivity extends Activity {
         Log.i(TAG, "getAndSendBackLocationUpdatesStatus=" + status);
 
         Intent returnIntent = new Intent();
-        returnIntent.putExtra(Utils.LOCATION_UPDATES_ACTIVE_PARAM, String.valueOf(status));
+        returnIntent.putExtra(Utils.PARAM_LOCATION_UPDATES_ACTIVE, String.valueOf(status));
         setResult(Activity.RESULT_OK, returnIntent);
     }
 
@@ -90,8 +100,8 @@ public class ServiceActivity extends Activity {
         Log.i(TAG, "getAndSendBackBatteryInfo=" + batteryInfo);
 
         Intent returnIntent = new Intent();
-        returnIntent.putExtra(Utils.BATTERY_LEVEL_PARAM, String.valueOf(batteryInfo.getBatteryLevel()));
-        returnIntent.putExtra(Utils.BATTERY_IS_CHARGING_PARAM, String.valueOf(batteryInfo.isCharging()));
+        returnIntent.putExtra(Utils.PARAM_BATTERY_LEVEL, String.valueOf(batteryInfo.getBatteryLevel()));
+        returnIntent.putExtra(Utils.PARAM_BATTERY_IS_CHARGING, String.valueOf(batteryInfo.isCharging()));
         setResult(Activity.RESULT_OK, returnIntent);
     }
 

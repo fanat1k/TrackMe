@@ -12,6 +12,7 @@ import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.StrictMode;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
@@ -33,6 +34,9 @@ import com.google.android.gms.tasks.Task;
 import com.kasian.trackme.data.Coordinate;
 import com.kasian.trackme.property.Properties;
 
+import org.json.JSONException;
+
+import java.io.IOException;
 import java.util.Date;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -46,7 +50,10 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
 
     private final IBinder mBinder = new LocationServiceBinder();
 
+    private final CoordinateSender coordinateSender = new CoordinateSender();
+
     private static final GpsCoordinatesHolder coordinateHolder = GpsCoordinatesHolder.getInstance();
+
 
     private static final String TAG = "TrackMe:GPSTrackerService";
 
@@ -58,6 +65,10 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     public void onCreate() {
         super.onCreate();
         Log.i(TAG, "onCreate");
+
+        // Allow sending network requests (POST)
+        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+        StrictMode.setThreadPolicy(policy);
 
         createNotificationChannel();
         Notification notification = createNotification();
@@ -94,29 +105,6 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
     @Override
     public void onConnectionSuspended(int i) {
         Log.i(TAG, "onConnectionSuspended");
-    }
-
-    public String getAllCoordinates() {
-        if (coordinateHolder.isEmpty()) {
-            return "";
-        }
-
-        StringBuilder stringBuilder = new StringBuilder();
-        while (!coordinateHolder.isEmpty()) {
-            Coordinate coordinate = coordinateHolder.poll();
-            if (coordinate != null) {
-                stringBuilder
-                        .append(coordinate.getDate())
-                        .append(Properties.delimiter)
-                        .append(coordinate.getTime())
-                        .append(Properties.delimiter)
-                        .append(coordinate.getLatitude())
-                        .append(Properties.delimiter)
-                        .append(coordinate.getLongitude())
-                        .append("\n");
-            }
-        }
-        return stringBuilder.toString();
     }
 
     public boolean getLocationUpdatesStatus() {
@@ -187,10 +175,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         changeLocationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
-                for (Location location : locationResult.getLocations()) {
-                    Log.i(TAG, "Location changed:" + location);
-                    saveCoordinates(location.getLatitude(), location.getLongitude());
-                }
+                sendOrCacheCoordinates(locationResult);
             }
         };
 
@@ -221,7 +206,53 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
     }
 
-    //TODO(romanpe @2018-10-24): synchronized?
+    private void sendOrCacheCoordinates(LocationResult locationResult) {
+        for (Location location : locationResult.getLocations()) {
+            Log.i(TAG, "Location changed:" + location);
+
+            Coordinate coordinate = new Coordinate(location.getLatitude(), location.getLongitude());
+            if (CoordinateServerInfo.getInstance().isReady()) {
+                if (sendCoordinate(coordinate)) {
+                    // Send all coordinates from cache (just in case if it's not empty)
+                    sendCoordinatesFromCache();
+                    return;
+                }
+            }
+            // Save coordinate to the Cache if coordiante server is not ready yet or sending failed
+            cacheCoordinate(coordinate);
+        }
+    }
+
+    private boolean sendCoordinate(Coordinate coordinate) {
+        Log.i(TAG, "Send new coordinate to server" + coordinate);
+        try {
+            int responseCode = coordinateSender.send(coordinate);
+            if (responseCode == Utils.HTTP_OK) {
+                return true;
+            } else {
+                Log.e(TAG, "Can not send coordinate, responseCode=" + responseCode);
+            }
+        } catch (IOException | JSONException e) {
+            Log.e(TAG, "Can not send coordinate due to error", e);
+        }
+        return false;
+    }
+
+    private void sendCoordinatesFromCache() {
+        while (!coordinateHolder.isEmpty()) {
+            synchronized (coordinateHolder) {
+                // Get coordinate from the queue, but do no remove from queue
+                Coordinate coordinate = coordinateHolder.peek();
+                if (coordinate != null) {
+                    if (sendCoordinate(coordinate)) {
+                        // Remove coordinate from queue in case of successfull upload to the server
+                        coordinateHolder.poll();
+                    }
+                }
+            }
+        }
+    }
+
     private synchronized void startLocationUpdates() {
         Log.i(TAG, "Start requesting location updates.");
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
@@ -234,17 +265,15 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
         }
     }
 
-    //TODO(romanpe @2018-10-24): synchronized?
     private synchronized void stopLocationUpdates() {
         Log.i(TAG, "Stop requesting location updates.");
         fusedLocationProviderClient.removeLocationUpdates(changeLocationCallback);
         locationUpdateStatus.set(false);
     }
 
-    private void saveCoordinates(double latitude, double longitude) {
-        Coordinate coordinates = new Coordinate(latitude, longitude);
-        Log.i(TAG, "Save new coordinates:" + coordinates);
-        coordinateHolder.add(coordinates);
+    private void cacheCoordinate(Coordinate coordinate) {
+        Log.i(TAG, "Save new coordinate to cache:" + coordinate);
+        coordinateHolder.add(coordinate);
     }
 
     private void scheduleCoordinatesCleaner() {
@@ -262,7 +291,7 @@ public class GPSTrackerService extends IntentService implements GoogleApiClient.
                     @Override
                     public void run() {
                         Log.i(TAG, "GPSTrackerPingThread is alive");
-                        saveCoordinates(0, 0);
+                        cacheCoordinate(new Coordinate(0, 0));
                     }
                 }, 0, Properties.checkLivenessPeriodMin, TimeUnit.MINUTES);
     }
