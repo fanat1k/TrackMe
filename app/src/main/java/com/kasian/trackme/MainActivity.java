@@ -49,20 +49,24 @@ public class MainActivity extends AppCompatActivity {
 
         if (!isServiceRunning(GPSTrackerService.class)) {
             startForegroundService(service);
+            Log.i(TAG, "Started foreground service.");
 
-            //to make gps location work in background
+            //To make gps location work in background
             startServiceConnector();
             this.getApplication().bindService(service, serviceConnection, Context.BIND_AUTO_CREATE);
+            Log.i(TAG, "Service is binded (dependency between app and service)");
         }
     }
 
     private void startServiceConnector() {
+        Log.i(TAG, "startServiceConnector");
         serviceConnection = new ServiceConnection() {
             @Override
             public void onServiceConnected(ComponentName className, IBinder service) {
                 String name = className.getClassName();
                 if (name.endsWith("GPSTrackerService")) {
                     gpsService = ((GPSTrackerService.LocationServiceBinder) service).getService();
+                    Log.i(TAG, "gpsService initiated successfully.");
                 }
             }
 
@@ -80,23 +84,27 @@ public class MainActivity extends AppCompatActivity {
         ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
         for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
             if (serviceClass.getName().equals(service.service.getClassName())) {
-                Toast.makeText(getApplicationContext(), "TrackMe Service is already running now.", Toast.LENGTH_LONG).show();
+                String message = "TrackMe is already running now.";
+                Log.w(TAG, message);
+                Toast.makeText(getApplicationContext(), message, Toast.LENGTH_LONG).show();
                 return true;
             }
         }
-        Toast.makeText(getApplicationContext(), "TrackMe Service is not running now. Will be started",
-                Toast.LENGTH_LONG).show();
+        String message = "TrackMe is not running now. Starting...";
+        Log.i(TAG, message);
+        Toast.makeText(getApplicationContext(), message, Toast.LENGTH_LONG).show();
         return false;
     }
 
     private void checkPermissionsAndStartGpsService() {
         Log.i(TAG, "checkPermissionsAndStartGpsService");
+        // TODO: 27.12.2019 is it correct to ckeck ACCESS_FINE_LOCATION only?
         Dexter.withActivity(this)
                 .withPermission(Manifest.permission.ACCESS_FINE_LOCATION)
                 .withListener(new PermissionListener() {
                     @Override
                     public void onPermissionGranted(PermissionGrantedResponse response) {
-                        Log.i(TAG, "Location permissions enabled.");
+                        Log.i(TAG, "Location permissions are enabled.");
                         startGpsTrackerService();
                         finishMainActivity();
                     }

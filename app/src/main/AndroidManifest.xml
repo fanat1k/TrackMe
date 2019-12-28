@@ -9,11 +9,10 @@
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
-    <!-- NETWORK_PROVIDER: get coordinates from network only -->
-    <!--<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />-->
-
     <!-- GPS_PROVIDER + NETWORK_PROVIDER -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- NETWORK_PROVIDER: get coordinates from network only -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <!-- Needed only if your app targets Android 5.0 (API level 21) or higher. -->
     <uses-feature android:name="android.hardware.location.gps" />

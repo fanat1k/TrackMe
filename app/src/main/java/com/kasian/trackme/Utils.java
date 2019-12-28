@@ -1,8 +1,5 @@
 package com.kasian.trackme;
 
-import com.google.android.gms.location.LocationRequest;
-import com.kasian.trackme.property.Properties;
-
 import java.util.Calendar;
 import java.util.Date;
 
@@ -16,15 +13,7 @@ public class Utils {
     public static final String PARAM_LOCATION_UPDATES_ACTIVE = "location_updates_active";
     public static final String PARAM_BATTERY_IS_CHARGING = "battery_is_charging";
     public static final String NOTIFICATION_CHANNEL_ID = "track_me_channel_id";
-
-    public static LocationRequest createLocationRequest() {
-        LocationRequest locationRequest = LocationRequest.create();
-
-        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        locationRequest.setInterval(Properties.locationRequestUpdateIntervalMillis);
-        locationRequest.setFastestInterval(Properties.locationRequestFastestIntervalMillis);
-        return locationRequest;
-    }
+    public static final int NOTIFICATION_CHANNEL_ID_INT = 1912281636;
 
     public static Date getTime(int hour, int min) {
         Calendar calendar = Calendar.getInstance();

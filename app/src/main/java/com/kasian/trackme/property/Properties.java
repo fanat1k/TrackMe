@@ -7,14 +7,13 @@ public class Properties {
     public static int startTrackingMin;
     public static int stopTrackingHour;
     public static int stopTrackingMin;
-    public static long locationRequestUpdateIntervalMillis;
-    public static long locationRequestFastestIntervalMillis;
+    public static int locationInterval;
+    public static int locationDistance;
     public static long coordinateLiveTimeMillis;
     public static long cleanCoordinatesDelayHour;
     public static long cleanCoordinatesPeriodHour;
     public static long checkLivenessPeriodMin;
     public static long updateLocationCheckerMin;
-    public static String delimiter;
 
     public static void init(Context context) {
         PropertyReader propertyReader = new PropertyReader(context);
@@ -24,10 +23,8 @@ public class Properties {
         stopTrackingHour = Integer.valueOf(propertyReader.getProperty("STOP_TRACKING_HOUR"));
         stopTrackingMin = Integer.valueOf(propertyReader.getProperty("STOP_TRACKING_MIN"));
 
-        locationRequestUpdateIntervalMillis = Long.valueOf(
-                propertyReader.getProperty("LOCATION_REQUEST_UPDATE_INTERVAL_MILLIS"));
-        locationRequestFastestIntervalMillis = Long.valueOf(
-                propertyReader.getProperty("LOCATION_REQUEST_FASTEST_INTERVAL_MILLIS"));
+        locationInterval = Integer.valueOf(propertyReader.getProperty("LOCATION_INTERVAL"));
+        locationDistance = Integer.valueOf(propertyReader.getProperty("LOCATION_DISTANCE"));
 
         coordinateLiveTimeMillis = Long.valueOf(propertyReader.getProperty("COORDINATE_LIVE_TIME_MILLIS"));
         cleanCoordinatesDelayHour = Long.valueOf(propertyReader.getProperty("CLEAN_COORDINATES_DELAY_HOUR"));
@@ -35,8 +32,6 @@ public class Properties {
 
         updateLocationCheckerMin = Long.valueOf(propertyReader.getProperty("UPDATE_LOCATION_CHECKER_MIN"));
         checkLivenessPeriodMin = Long.valueOf(propertyReader.getProperty("CHECK_LIVENESS_PERIOD_MIN"));
-
-        delimiter = propertyReader.getProperty("DELIMITER");
     }
 
     public static String print() {
@@ -44,13 +39,12 @@ public class Properties {
                 "\nstartTrackingMin" + "=" + startTrackingMin +
                 "\nstopTrackingHour" + "=" + stopTrackingHour +
                 "\nstopTrackingMin" + "=" + stopTrackingMin +
-                "\nlocationRequestUpdateIntervalMillis" + "=" + locationRequestUpdateIntervalMillis +
-                "\nlocationRequestFastestIntervalMillis" + "=" + locationRequestFastestIntervalMillis +
+                "\nlocationInterval" + "=" + locationInterval +
+                "\nlocationDistance" + "=" + locationDistance +
                 "\ncoordinateLiveTimeMillis" + "=" + coordinateLiveTimeMillis +
                 "\ncleanCoordinatesDelayHour" + "=" + cleanCoordinatesDelayHour +
                 "\ncleanCoordinatesPeriodHour" + "=" + cleanCoordinatesPeriodHour +
                 "\nupdateLocationCheckerMin" + "=" + updateLocationCheckerMin +
-                "\ncheckLivenessPeriodMin" + "=" + checkLivenessPeriodMin +
-                "\ndelimiter" + "=" + delimiter;
+                "\ncheckLivenessPeriodMin" + "=" + checkLivenessPeriodMin;
     }
 }
