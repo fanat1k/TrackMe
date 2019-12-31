@@ -1,0 +1,61 @@
+# Description:
+TODO:
+
+# To communicate with TrackMe use the following approach:
+// Prepare intent
+Intent intent = new Intent();
+intent.setClassName("com.kasian.trackme", "com.kasian.trackme.ServiceActivity");
+
+// Populate with parameters
+intent.putExtra("param1", "value1");
+intent.putExtra("param2", "value2");
+
+// send request to activity
+startActivityForResult(intent, 1);
+
+# To pass server/login/password:
+intent.putExtra("server", "http://62.149.14.54:82/tdsvr/hs/COE/gps");
+intent.putExtra("user", "gps");
+intent.putExtra("password", "bla-bla");
+
+
+# By default coordinates are requested from 7AM to 9PM.
+During this time service reports in log every minute:
+    service running status - true
+From 9PM till 7AM service reports:
+    service running status - true
+To change start or stop time need to set a new time (in format "HH:mm")
+Changes will be applyed up to 1 minute (service will start reporting running status - true.
+
+# To pass start_time
+intent.putExtra("start_time", "06:00");
+
+# To pass stop_time
+intent.putExtra("stop_time", "23:30");
+
+# to get Battery info (charge and if it's charging now)
+intent.putExtra("battery_level", "23:30");
+
+// response contains 2 parameters: "battery_level" (percentage), "battery_is_charging" (boolean)
+protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    Bundle extras = data.getExtras();
+    String batteryLevel = extras.getString("battery_level");
+    Boolean isChargingNow = extras.getBoolean("battery_is_charging");
+    ...
+}
+
+
+# Once location is changed TrackMe sends to server coordinates in Json format (array of coordinates):
+[
+    {
+        "date": "31.12.2019 22:36", // in format "dd.MM.yyyy HH:mm:ss"
+        "latitude": 100,
+        "longitude": 200
+    },
+    {
+        "date": "31.12.2019 22:38", // in format "dd.MM.yyyy HH:mm:ss"
+        "latitude": 101,
+        "longitude": 201
+    },
+    ...
+]

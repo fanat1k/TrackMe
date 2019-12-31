@@ -10,7 +10,14 @@ import android.os.BatteryManager;
 import android.os.IBinder;
 import android.util.Log;
 
+import com.kasian.trackme.coordinate.CoordinateServerInfoHolder;
 import com.kasian.trackme.data.BatteryInfo;
+import com.kasian.trackme.data.CoordinateServerProperty;
+import com.kasian.trackme.property.CoordinateServerInfoManagerImpl;
+import com.kasian.trackme.property.Properties;
+import com.kasian.trackme.service.GPSTrackerService;
+
+import java.time.LocalTime;
 
 public class ServiceActivity extends Activity {
     private GPSTrackerService mService;
@@ -24,15 +31,29 @@ public class ServiceActivity extends Activity {
         super.onStart();
         Log.i(TAG,"onStart");
 
+        // Coordinate server, user, password
         String server = getIntent().getStringExtra(Utils.PARAM_COORDINATE_SERVER);
         String user = getIntent().getStringExtra(Utils.PARAM_USER);
         String password = getIntent().getStringExtra(Utils.PARAM_PASSWORD);
 
         if (server != null && user != null && password != null) {
-            setCoordinateServerParams(server, user, password);
+            setCoordinateServerInfo(server, user, password);
             finish();
         }
 
+        // Location requesting start_time and stop_time
+        String startTime = getIntent().getStringExtra(Utils.START_TIME);
+        String stopTime = getIntent().getStringExtra(Utils.STOP_TIME);
+        if (startTime != null) {
+            setTime(startTime, true);
+            finish();
+        }
+        if (stopTime != null) {
+            setTime(stopTime, false);
+            finish();
+        }
+
+        // Battary level info
         String shouldGetBatteryLevel = getIntent().getStringExtra(Utils.PARAM_BATTERY_LEVEL);
         if (shouldGetBatteryLevel != null) {
             getAndSendBackBatteryInfo();
@@ -74,15 +95,36 @@ public class ServiceActivity extends Activity {
         }
     }
 
-    private void setCoordinateServerParams(String server, String user, String password) {
-        Log.i(TAG, "setCoordinateServerParams:server=" + server + ";user=" + user);
-        CoordinateServerInfo coordinateServerInfo = CoordinateServerInfo.getInstance();
-        coordinateServerInfo.setCoordinateServer(server);
-        coordinateServerInfo.setUser(user);
-        coordinateServerInfo.setPassword(password);
+    private void setCoordinateServerInfo(String server, String user, String password) {
+        Log.i(TAG, "setCoordinateServerInfo:server=" + server + ";user=" + user);
+
+        CoordinateServerProperty coordinateServerProperty = CoordinateServerProperty.builder()
+                .address(server)
+                .user(user)
+                .password(password)
+                .build();
+        CoordinateServerInfoHolder.getInstance().setProperty(coordinateServerProperty);
+        new CoordinateServerInfoManagerImpl(getApplicationContext()).setCoordinateServerProperty(coordinateServerProperty);
 
         Intent returnIntent = new Intent();
-        returnIntent.putExtra(Utils.PARAM_RESPONSE_OK, "ok");
+        returnIntent.putExtra(Utils.PARAM_RESPONSE, "Coordinate server has been set");
+        setResult(Activity.RESULT_OK, returnIntent);
+    }
+
+    private void setTime(String time, boolean isStartTime) {
+        String kindOfTime = isStartTime ? "start_time" : "stop_time";
+        Log.i(TAG, "set " + kindOfTime + "=" + time);
+        LocalTime localTime = Utils.getLocalTime(time);
+        if (isStartTime) {
+            Properties.startTrackingHour = localTime.getHour();
+            Properties.startTrackingMin = localTime.getMinute();
+        } else {
+            Properties.stopTrackingHour = localTime.getHour();
+            Properties.stopTrackingMin = localTime.getMinute();
+        }
+
+        Intent returnIntent = new Intent();
+        returnIntent.putExtra(Utils.PARAM_RESPONSE, kindOfTime + " has been set");
         setResult(Activity.RESULT_OK, returnIntent);
     }
 

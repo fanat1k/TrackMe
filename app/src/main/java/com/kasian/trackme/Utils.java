@@ -1,14 +1,17 @@
 package com.kasian.trackme;
 
+import java.time.LocalTime;
 import java.util.Calendar;
 import java.util.Date;
 
 public class Utils {
     public static final int HTTP_OK = 200;
-    public static final String PARAM_RESPONSE_OK = "response_ok";
+    public static final String PARAM_RESPONSE = "response";
     public static final String PARAM_COORDINATE_SERVER = "server";
     public static final String PARAM_USER = "user";
     public static final String PARAM_PASSWORD = "password";
+    public static final String START_TIME = "start_time";
+    public static final String STOP_TIME = "stop_time";
     public static final String PARAM_BATTERY_LEVEL = "battery_level";
     public static final String PARAM_LOCATION_UPDATES_ACTIVE = "location_updates_active";
     public static final String PARAM_BATTERY_IS_CHARGING = "battery_is_charging";
@@ -25,5 +28,10 @@ public class Utils {
 
     public static Date getCurrentTime() {
         return Calendar.getInstance().getTime();
+    }
+
+    public static LocalTime getLocalTime(String time) {
+        String[] t = time.split(":");
+        return LocalTime.of(Integer.valueOf(t[0]), Integer.valueOf(t[1]));
     }
 }

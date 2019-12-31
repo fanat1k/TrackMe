@@ -1,4 +1,4 @@
-package com.kasian.trackme;
+package com.kasian.trackme.service;
 
 import android.app.IntentService;
 import android.app.Notification;
@@ -19,13 +19,24 @@ import android.support.annotation.Nullable;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.kasian.trackme.R;
+import com.kasian.trackme.Utils;
+import com.kasian.trackme.coordinate.CoordinateHolder;
+import com.kasian.trackme.coordinate.CoordinateSenderImpl;
+import com.kasian.trackme.coordinate.CoordinateServerInfoHolder;
 import com.kasian.trackme.data.Coordinate;
+import com.kasian.trackme.data.CoordinateServerProperty;
+import com.kasian.trackme.property.CoordinateServerInfoManager;
+import com.kasian.trackme.property.CoordinateServerInfoManagerImpl;
 import com.kasian.trackme.property.Properties;
 
 import org.json.JSONException;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -33,11 +44,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class GPSTrackerService extends IntentService {
     private LocationManager locationManager;
     private LocationListener locationListener;
+    private CoordinateServerInfoManager coordinateServerInfoManager;
 
     private final IBinder mBinder = new LocationServiceBinder();
-    private final CoordinateSender coordinateSender = new CoordinateSender();
+    private final CoordinateSenderImpl coordinateSender = new CoordinateSenderImpl();
 
-    private static final GpsCoordinatesHolder coordinateHolder = GpsCoordinatesHolder.getInstance();
+    private static final CoordinateHolder coordinateHolder = CoordinateHolder.getInstance();
     private static AtomicBoolean locationUpdateStatus = new AtomicBoolean(false);
     private static final String TAG = "TrackMe:GPSTrackerService";
 
@@ -60,9 +72,19 @@ public class GPSTrackerService extends IntentService {
         super.onStart(intent, startId);
         Toast.makeText(getApplicationContext(), "TrackMe has been started.", Toast.LENGTH_LONG).show();
 
+        initCoordinateServerInfo();
         initLocationUpdates();
         scheduleLocationUpdates();
         scheduleCoordinatesCleaner();
+    }
+
+    private void initCoordinateServerInfo() {
+        coordinateServerInfoManager = new CoordinateServerInfoManagerImpl(getApplicationContext());
+        CoordinateServerProperty coordinateServerProperty = coordinateServerInfoManager.getCoordinateServerProperty();
+        if (coordinateServerProperty != null) {
+            Log.i(TAG, "Found coordinateServerProperty=" + coordinateServerProperty);
+            CoordinateServerInfoHolder.getInstance().setProperty(coordinateServerProperty);
+        }
     }
 
     @Override
@@ -111,7 +133,7 @@ public class GPSTrackerService extends IntentService {
     }
 
     public class LocationServiceBinder extends Binder {
-        GPSTrackerService getService() {
+        public GPSTrackerService getService() {
             return GPSTrackerService.this;
         }
     }
@@ -127,16 +149,15 @@ public class GPSTrackerService extends IntentService {
                 Date stopTime = Utils.getTime(Properties.stopTrackingHour, Properties.stopTrackingMin);
 
                 if (currentTime.after(startTime) && currentTime.before(stopTime)) {
-                    Log.i(TAG, "is location checker running? " + locationUpdateStatus.get());
                     if (!locationUpdateStatus.get()) {
                         startLocationUpdates();
                     }
                 } else {
-                    Log.i(TAG, "is location checker stopped? " + locationUpdateStatus.get());
                     if (locationUpdateStatus.get()) {
                         stopLocationUpdates();
                     }
                 }
+                Log.i(TAG, "service running status - " + locationUpdateStatus.get());
             }
         };
 
@@ -153,8 +174,8 @@ public class GPSTrackerService extends IntentService {
 
             public void onLocationChanged(Location location) {
                 // Called when a new location is found by the network location provider.
-                // TODO: 27.12.2019 use getLastKnownLocation() ?
-                sendOrCacheCoordinates(location);
+                Log.i(TAG, "Location changed:" + location);
+                sendOrCacheCoordinates(new Coordinate(location.getLatitude(), location.getLongitude()));
             }
 
             @Override
@@ -172,14 +193,9 @@ public class GPSTrackerService extends IntentService {
         Log.w(TAG, "isGPSEnabled=" + locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER));
     }
 
-    private void sendOrCacheCoordinates(Location location) {
-        Log.i(TAG, "Location changed:" + location);
-        location.getLatitude();
-        location.getLongitude();
-        Coordinate coordinate = new Coordinate(location.getLatitude(), location.getLongitude());
-
-        if (CoordinateServerInfo.getInstance().isReady()) {
-            if (sendCoordinate(coordinate)) {
+    private void sendOrCacheCoordinates(Coordinate coordinate) {
+        if (CoordinateServerInfoHolder.getInstance().isReady()) {
+            if (sendCoordinate(Collections.singletonList(coordinate))) {
                 // Send all coordinates from cache (just in case if it's not empty)
                 sendCoordinatesFromCache();
                 return;
@@ -191,31 +207,29 @@ public class GPSTrackerService extends IntentService {
         cacheCoordinate(coordinate);
     }
 
-    private boolean sendCoordinate(Coordinate coordinate) {
+    private boolean sendCoordinate(List<Coordinate> coordinates) {
         try {
-            int responseCode = coordinateSender.send(coordinate);
+            int responseCode = coordinateSender.send(coordinates);
             if (responseCode == Utils.HTTP_OK) {
-                Log.i(TAG, "New coordinate have been sent to server:" + coordinate);
+                Log.i(TAG, "New coordinates have been sent to server:" + coordinates);
                 return true;
             } else {
-                Log.e(TAG, "Can not send coordinate, responseCode=" + responseCode);
+                Log.e(TAG, "Can not send coordinates, responseCode=" + responseCode);
             }
         } catch (IOException | JSONException e) {
-            Log.e(TAG, "Can not send coordinate due to error", e);
+            Log.e(TAG, "Can not send coordinates due to error", e);
         }
         return false;
     }
 
-    // TODO: 24.11.2019 send list of coordinates instead one-by-one
     private void sendCoordinatesFromCache() {
         while (!coordinateHolder.isEmpty()) {
             Log.i(TAG, "Send coordinates from the Cache, size=" + coordinateHolder.size());
             synchronized (coordinateHolder) {
                 // Get coordinate from the queue, but do no remove from queue
-                Coordinate coordinate = coordinateHolder.peek();
-                if (sendCoordinate(coordinate)) {
+                if (sendCoordinate(coordinateHolder.getAll())) {
                     // Remove coordinate from queue in case of successfull upload to the server
-                    coordinateHolder.poll();
+                    coordinateHolder.clear();
                 }
             }
         }
@@ -268,7 +282,7 @@ public class GPSTrackerService extends IntentService {
                     @Override
                     public void run() {
                         Log.i(TAG, "GPSTrackerPingThread is alive");
-                        cacheCoordinate(new Coordinate(0, 0));
+                        sendOrCacheCoordinates(new Coordinate(0, 0));
                     }
                 }, 0, Properties.checkLivenessPeriodMin, TimeUnit.MINUTES);
     }
@@ -278,17 +292,19 @@ public class GPSTrackerService extends IntentService {
         public void run() {
             Log.i(TAG, "Start coordinate cleaner");
             long currentTime = System.currentTimeMillis();
-            while (!coordinateHolder.isEmpty()) {
-                synchronized (coordinateHolder) {
-                    Coordinate coordinate = coordinateHolder.peek();
-                    if (coordinate != null) {
-                        if (currentTime - coordinate.getTimestamp() > Properties.coordinateLiveTimeMillis) {
-                            Log.i(TAG, "Remove coordinate from queue due to timeout:" + coordinate);
-                            coordinateHolder.poll();
-                        } else {
-                            break;
-                        }
+            List<Coordinate> coordiantesToRemove = new ArrayList<>();
+
+            synchronized (coordinateHolder) {
+                for (Coordinate coordinate : coordinateHolder.getAll()) {
+                    if (currentTime - coordinate.getTimestamp() > Properties.coordinateLiveTimeMillis) {
+                        coordiantesToRemove.add(coordinate);
                     }
+                }
+                if (coordiantesToRemove.isEmpty()) {
+                    Log.i(TAG, "Nothing to remove for now");
+                } else {
+                    coordinateHolder.removeAll(coordiantesToRemove);
+                    Log.w(TAG, "Remove coordinates from queue due to timeout:" + coordiantesToRemove);
                 }
             }
         }

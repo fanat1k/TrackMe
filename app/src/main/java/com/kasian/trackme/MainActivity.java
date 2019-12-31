@@ -23,11 +23,12 @@ import com.karumi.dexter.listener.PermissionGrantedResponse;
 import com.karumi.dexter.listener.PermissionRequest;
 import com.karumi.dexter.listener.single.PermissionListener;
 import com.kasian.trackme.property.Properties;
+import com.kasian.trackme.service.GPSTrackerService;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "TrackMe:MainActivity";
 
-    private GPSTrackerService gpsService;
+    private GPSTrackerService gpsTrackerService;
     private ServiceConnection serviceConnection;
 
     @Override
@@ -65,15 +66,15 @@ public class MainActivity extends AppCompatActivity {
             public void onServiceConnected(ComponentName className, IBinder service) {
                 String name = className.getClassName();
                 if (name.endsWith("GPSTrackerService")) {
-                    gpsService = ((GPSTrackerService.LocationServiceBinder) service).getService();
-                    Log.i(TAG, "gpsService initiated successfully.");
+                    gpsTrackerService = ((GPSTrackerService.LocationServiceBinder) service).getService();
+                    Log.i(TAG, "gpsTrackerService initiated successfully.");
                 }
             }
 
             @Override
             public void onServiceDisconnected(ComponentName className) {
                 if (className.getClassName().equals("GPSTrackerService")) {
-                    gpsService = null;
+                    gpsTrackerService = null;
                 }
             }
         };

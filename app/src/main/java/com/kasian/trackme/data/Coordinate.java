@@ -1,7 +1,8 @@
 package com.kasian.trackme.data;
 
-import java.text.SimpleDateFormat;
-import java.util.Locale;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 import lombok.Getter;
 import lombok.ToString;
@@ -9,24 +10,23 @@ import lombok.ToString;
 @Getter
 @ToString
 public class Coordinate {
-    private final long timestamp;
+    private final LocalDateTime  date;
     private final double latitude;
     private final double longitude;
 
-    private static final SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-    private static final SimpleDateFormat simpleTimeFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+    private static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
 
     public Coordinate(double latitude, double longitude) {
-        this.timestamp = System.currentTimeMillis();
+        this.date = LocalDateTime.now();
         this.latitude = latitude;
         this.longitude = longitude;
     }
 
-    public String getDate() {
-        return simpleDateFormat.format(timestamp);
+    public String getDateFormatted() {
+        return dateTimeFormatter.format(date);
     }
 
-    public String getTime() {
-        return simpleTimeFormat.format(timestamp);
+    public long getTimestamp() {
+        return Instant.from(date).toEpochMilli();
     }
 }
