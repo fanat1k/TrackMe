@@ -1,6 +1,7 @@
 # Description:
 TODO:
 
+
 # To communicate with TrackMe use the following approach:
 // Prepare intent
 Intent intent = new Intent();
@@ -59,3 +60,10 @@ protected void onActivityResult(int requestCode, int resultCode, Intent data) {
     },
     ...
 ]
+
+# To show Trackme logs (actually it will show all device's log for the last several hours):
+1. go to directory sdk\platform-tools, e.g.:
+cd %USER%\AppData\Local\Android\Sdk\platform-tools
+2. run adb.exe wiht param logcat and redirect output to some file (since there will be tons of lines)
+adb logcat > c:/mylogcat.txt
+3. in logs search for "TrackMe:"
