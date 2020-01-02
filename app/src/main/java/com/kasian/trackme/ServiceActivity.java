@@ -68,9 +68,9 @@ public class ServiceActivity extends Activity {
                 mService = binder.getService();
                 mBound = true;
 
-                String shouldGetLocationUpdatesStatus = getIntent().getStringExtra(Utils.PARAM_LOCATION_UPDATES_ACTIVE);
-                if (shouldGetLocationUpdatesStatus != null) {
-                    getAndSendBackLocationUpdatesStatus();
+                String getHealthCheck = getIntent().getStringExtra(Utils.PARAM_HEALTHCHECK);
+                if (getHealthCheck != null) {
+                    getAndSendBackHealthcheck();
                 }
                 finish();
             }
@@ -114,7 +114,7 @@ public class ServiceActivity extends Activity {
     private void setTime(String time, boolean isStartTime) {
         String kindOfTime = isStartTime ? "start_time" : "stop_time";
         Log.i(TAG, "set " + kindOfTime + "=" + time);
-        LocalTime localTime = Utils.getLocalTime(time);
+        LocalTime localTime = Utils.getLocalTimeFromHHMM(time);
         if (isStartTime) {
             Properties.startTrackingHour = localTime.getHour();
             Properties.startTrackingMin = localTime.getMinute();
@@ -128,12 +128,14 @@ public class ServiceActivity extends Activity {
         setResult(Activity.RESULT_OK, returnIntent);
     }
 
-    private void getAndSendBackLocationUpdatesStatus() {
-        boolean status = mService.getLocationUpdatesStatus();
-        Log.i(TAG, "getAndSendBackLocationUpdatesStatus=" + status);
+    private void getAndSendBackHealthcheck() {
+        boolean status = mService.getLocationUpdateStatus();
+        String lastLocationUpdateTime = mService.getLastLocationUpdateTime();
+        String healthcheck = (status ? "on" : "off") + ";" + lastLocationUpdateTime;
+        Log.i(TAG, "getAndSendBackHealthcheck=" + healthcheck);
 
         Intent returnIntent = new Intent();
-        returnIntent.putExtra(Utils.PARAM_LOCATION_UPDATES_ACTIVE, String.valueOf(status));
+        returnIntent.putExtra(Utils.PARAM_HEALTHCHECK, String.valueOf(healthcheck));
         setResult(Activity.RESULT_OK, returnIntent);
     }
 

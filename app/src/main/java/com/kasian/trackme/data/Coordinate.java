@@ -1,8 +1,9 @@
 package com.kasian.trackme.data;
 
+import com.kasian.trackme.Utils;
+
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 
 import lombok.Getter;
 import lombok.ToString;
@@ -14,8 +15,6 @@ public class Coordinate {
     private final double latitude;
     private final double longitude;
 
-    private static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
-
     public Coordinate(double latitude, double longitude) {
         this.date = LocalDateTime.now();
         this.latitude = latitude;
@@ -23,7 +22,7 @@ public class Coordinate {
     }
 
     public String getDateFormatted() {
-        return dateTimeFormatter.format(date);
+        return Utils.getDateFormatted(date);
     }
 
     public long getTimestamp() {

@@ -14,6 +14,9 @@ intent.putExtra("param2", "value2");
 // send request to activity
 startActivityForResult(intent, 1);
 
+# Healthcheck. Returns status as string in format "on(off);last_time_get_coordinate", e.g.: "on;31.12.2019 16:59:45"
+intent.putExtra("healthcheck");
+
 # To pass server/login/password:
 intent.putExtra("server", "http://62.149.14.54:82/tdsvr/hs/COE/gps");
 intent.putExtra("user", "gps");

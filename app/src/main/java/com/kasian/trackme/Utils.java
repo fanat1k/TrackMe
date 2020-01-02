@@ -1,6 +1,8 @@
 package com.kasian.trackme;
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -13,10 +15,12 @@ public class Utils {
     public static final String START_TIME = "start_time";
     public static final String STOP_TIME = "stop_time";
     public static final String PARAM_BATTERY_LEVEL = "battery_level";
-    public static final String PARAM_LOCATION_UPDATES_ACTIVE = "location_updates_active";
+    public static final String PARAM_HEALTHCHECK = "healthcheck";
     public static final String PARAM_BATTERY_IS_CHARGING = "battery_is_charging";
     public static final String NOTIFICATION_CHANNEL_ID = "track_me_channel_id";
     public static final int NOTIFICATION_CHANNEL_ID_INT = 1912281636;
+
+    private static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
 
     public static Date getTime(int hour, int min) {
         Calendar calendar = Calendar.getInstance();
@@ -30,8 +34,12 @@ public class Utils {
         return Calendar.getInstance().getTime();
     }
 
-    public static LocalTime getLocalTime(String time) {
+    public static LocalTime getLocalTimeFromHHMM(String time) {
         String[] t = time.split(":");
         return LocalTime.of(Integer.valueOf(t[0]), Integer.valueOf(t[1]));
+    }
+
+    public static String getDateFormatted(LocalDateTime date) {
+        return dateTimeFormatter.format(date);
     }
 }

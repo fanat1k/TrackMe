@@ -33,6 +33,7 @@ import com.kasian.trackme.property.Properties;
 import org.json.JSONException;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -51,6 +52,7 @@ public class GPSTrackerService extends IntentService {
 
     private static final CoordinateHolder coordinateHolder = CoordinateHolder.getInstance();
     private static AtomicBoolean locationUpdateStatus = new AtomicBoolean(false);
+    private static LocalDateTime lastLocationUpdateTime;
     private static final String TAG = "TrackMe:GPSTrackerService";
 
     public GPSTrackerService() {
@@ -98,8 +100,12 @@ public class GPSTrackerService extends IntentService {
         return mBinder;
     }
 
-    public boolean getLocationUpdatesStatus() {
+    public boolean getLocationUpdateStatus() {
         return locationUpdateStatus.get();
+    }
+
+    public String getLastLocationUpdateTime() {
+        return lastLocationUpdateTime == null ? null : Utils.getDateFormatted(lastLocationUpdateTime);
     }
 
     private void setNetworkPolicy() {
@@ -175,6 +181,7 @@ public class GPSTrackerService extends IntentService {
             public void onLocationChanged(Location location) {
                 // Called when a new location is found by the network location provider.
                 Log.i(TAG, "Location changed:" + location);
+                lastLocationUpdateTime = LocalDateTime.now();
                 sendOrCacheCoordinates(new Coordinate(location.getLatitude(), location.getLongitude()));
             }
 
