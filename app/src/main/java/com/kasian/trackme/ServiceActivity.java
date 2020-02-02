@@ -8,15 +8,21 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.BatteryManager;
 import android.os.IBinder;
+import android.support.annotation.NonNull;
 import android.util.Log;
 
 import com.kasian.trackme.coordinate.CoordinateServerInfoHolder;
 import com.kasian.trackme.data.BatteryInfo;
 import com.kasian.trackme.data.CoordinateServerProperty;
+import com.kasian.trackme.data.HealthCheck;
 import com.kasian.trackme.property.CoordinateServerInfoManagerImpl;
 import com.kasian.trackme.property.Properties;
 import com.kasian.trackme.service.GPSTrackerService;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 public class ServiceActivity extends Activity {
@@ -131,12 +137,49 @@ public class ServiceActivity extends Activity {
     private void getAndSendBackHealthcheck() {
         boolean status = mService.getLocationUpdateStatus();
         String lastLocationUpdateTime = mService.getLastLocationUpdateTime();
-        String healthcheck = (status ? "on" : "off") + ";" + lastLocationUpdateTime;
-        Log.i(TAG, "getAndSendBackHealthcheck=" + healthcheck);
+        String lastLocationSendTime = mService.getLastLocationSendTime();
+        Integer coordinateCacheSize = mService.getCoordinateCacheSize();
+        CoordinateServerProperty coordinateServerInfo = mService.getCoordinateServerInfo();
+
+        HealthCheck healthCheck = HealthCheck.builder()
+                .status(HealthCheck.Status.parse(status))
+                .locationLastUpdateTime(lastLocationUpdateTime)
+                .locationLastSendTime(lastLocationSendTime)
+                .coordinateCacheSize(coordinateCacheSize)
+                .coordinateServerInfo(coordinateServerInfo)
+                .build();
+        Log.i(TAG, "getAndSendBackHealthcheck=" + healthCheck);
 
         Intent returnIntent = new Intent();
-        returnIntent.putExtra(Utils.PARAM_HEALTHCHECK, String.valueOf(healthcheck));
+        String healthCheckString = getJson(healthCheck).toString()
+                .replace("\\/", "/")
+                .replace("\\\\", "\\");
+
+        returnIntent.putExtra(Utils.PARAM_HEALTHCHECK, healthCheckString);
         setResult(Activity.RESULT_OK, returnIntent);
+    }
+
+    @NonNull
+    // TODO: 02.02.2020 use Jackson
+    private JSONObject getJson(HealthCheck healthCheck) {
+        JSONObject jsonObject = new JSONObject();
+        try {
+            CoordinateServerProperty coordinateServerInfo = healthCheck.getCoordinateServerInfo();
+            JSONObject coordinateServerInfoJson = new JSONObject();
+            coordinateServerInfoJson.put("address", coordinateServerInfo.getAddress());
+            coordinateServerInfoJson.put("user", coordinateServerInfo.getUser());
+            coordinateServerInfoJson.put("password", coordinateServerInfo.getPassword());
+            return jsonObject
+                    .put("date", Utils.getDateFormatted(LocalDateTime.now()))
+                    .put("status", healthCheck.getStatus())
+                    .put("locationLastUpdateTime", healthCheck.getLocationLastUpdateTime())
+                    .put("locationLastSendTime", healthCheck.getLocationLastSendTime())
+                    .put("coordinateCacheSize", healthCheck.getCoordinateCacheSize())
+                    .put("coordinateServerInfo", coordinateServerInfoJson);
+        } catch (JSONException e) {
+            Log.e(TAG, "Can not create json object from healthcheck=" + healthCheck);
+        }
+        return jsonObject;
     }
 
     private void getAndSendBackBatteryInfo() {

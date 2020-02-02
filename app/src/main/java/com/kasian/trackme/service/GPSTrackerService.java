@@ -52,7 +52,8 @@ public class GPSTrackerService extends IntentService {
 
     private static final CoordinateHolder coordinateHolder = CoordinateHolder.getInstance();
     private static AtomicBoolean locationUpdateStatus = new AtomicBoolean(false);
-    private static LocalDateTime lastLocationUpdateTime;
+    private static LocalDateTime locationLastUpdateTime;
+    private static LocalDateTime locationLastSendTime;
     private static final String TAG = "TrackMe:GPSTrackerService";
 
     public GPSTrackerService() {
@@ -105,7 +106,23 @@ public class GPSTrackerService extends IntentService {
     }
 
     public String getLastLocationUpdateTime() {
-        return lastLocationUpdateTime == null ? null : Utils.getDateFormatted(lastLocationUpdateTime);
+        return locationLastUpdateTime == null ? null : Utils.getDateFormatted(locationLastUpdateTime);
+    }
+    public String getLastLocationSendTime() {
+        return locationLastSendTime == null ? null : Utils.getDateFormatted(locationLastSendTime);
+    }
+
+    public Integer getCoordinateCacheSize() {
+        return coordinateHolder.size();
+    }
+
+    public CoordinateServerProperty getCoordinateServerInfo() {
+        CoordinateServerInfoHolder serverInfoHolder = CoordinateServerInfoHolder.getInstance();
+        return CoordinateServerProperty.builder()
+                .address(serverInfoHolder.getServer())
+                .user(serverInfoHolder.getUser())
+                .password(serverInfoHolder.getPassword())
+                .build();
     }
 
     private void setNetworkPolicy() {
@@ -181,7 +198,7 @@ public class GPSTrackerService extends IntentService {
             public void onLocationChanged(Location location) {
                 // Called when a new location is found by the network location provider.
                 Log.i(TAG, "Location changed:" + location);
-                lastLocationUpdateTime = LocalDateTime.now();
+                locationLastUpdateTime = LocalDateTime.now();
                 sendOrCacheCoordinates(new Coordinate(location.getLatitude(), location.getLongitude()));
             }
 
@@ -219,6 +236,7 @@ public class GPSTrackerService extends IntentService {
             int responseCode = coordinateSender.send(coordinates);
             if (responseCode == Utils.HTTP_OK) {
                 Log.i(TAG, "New coordinates have been sent to server:" + coordinates);
+                locationLastSendTime = LocalDateTime.now();
                 return true;
             } else {
                 Log.e(TAG, "Can not send coordinates, responseCode=" + responseCode);
