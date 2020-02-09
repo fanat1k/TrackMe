@@ -17,7 +17,7 @@ public class CoordinateServerProperty {
 
     @Override
     public String toString() {
-        String hiddenPassword = this.password.replaceFirst(".{2}", "*");
+        String hiddenPassword = this.password.replaceFirst(".{2}", "**");
         return "CoordinateServerProperty{" +
                 "address='" + address + '\'' +
                 ", user='" + user + '\'' +
