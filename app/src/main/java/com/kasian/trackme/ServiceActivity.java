@@ -75,7 +75,6 @@ public class ServiceActivity extends Activity {
         mConnection = new ServiceConnection() {
             @Override
             public void onServiceConnected(ComponentName className, IBinder service) {
-                LOG.info("onServiceConnected");
                 GPSTrackerService.LocationServiceBinder binder = (GPSTrackerService.LocationServiceBinder) service;
                 mService = binder.getService();
                 mBound = true;
@@ -155,6 +154,7 @@ public class ServiceActivity extends Activity {
                 .coordinateCacheSize(coordinateCacheSize)
                 .coordinateServerInfo(coordinateServerInfo)
                 .build();
+
         LOG.info("getAndSendBackHealthcheck=" + healthCheck);
 
         Intent returnIntent = new Intent();
@@ -175,7 +175,8 @@ public class ServiceActivity extends Activity {
             JSONObject coordinateServerInfoJson = new JSONObject();
             coordinateServerInfoJson.put("address", coordinateServerInfo.getAddress());
             coordinateServerInfoJson.put("user", coordinateServerInfo.getUser());
-            coordinateServerInfoJson.put("password", coordinateServerInfo.getPassword());
+            coordinateServerInfoJson.put("password", Utils.hidePassword(coordinateServerInfo.getPassword()));
+            coordinateServerInfoJson.put("userId(login)", coordinateServerInfo.getUserId());
             return jsonObject
                     .put("date", Utils.getDateFormatted(LocalDateTime.now()))
                     .put("status", healthCheck.getStatus())
@@ -231,5 +232,4 @@ public class ServiceActivity extends Activity {
         returnIntent.putExtra(Utils.PARAM_LOGS, logs);
         setResult(Activity.RESULT_OK, returnIntent);
     }
-
 }

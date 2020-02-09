@@ -119,11 +119,7 @@ public class GPSTrackerService extends IntentService {
 
     public CoordinateServerProperty getCoordinateServerInfo() {
         CoordinateServerInfoHolder serverInfoHolder = CoordinateServerInfoHolder.getInstance();
-        return CoordinateServerProperty.builder()
-                .address(serverInfoHolder.getServer())
-                .user(serverInfoHolder.getUser())
-                .password(serverInfoHolder.getPassword())
-                .build();
+        return serverInfoHolder.getProperty();
     }
 
     private void setNetworkPolicy() {

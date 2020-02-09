@@ -33,6 +33,18 @@ public class CoordinateServerInfoHolder {
         instance.setUserId(property.getUserId());
     }
 
+    public CoordinateServerProperty getProperty() {
+        if (isComplete()) {
+            return CoordinateServerProperty.builder()
+                    .address(server)
+                    .user(user)
+                    .password(password)
+                    .userId(userId)
+                    .build();
+        } else {
+            return null;
+        }
+    }
 
     public boolean isComplete() {
         return server != null && user != null && password != null && userId != null;

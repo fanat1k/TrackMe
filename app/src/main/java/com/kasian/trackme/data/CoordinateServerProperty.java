@@ -1,5 +1,7 @@
 package com.kasian.trackme.data;
 
+import com.kasian.trackme.Utils;
+
 import lombok.Builder;
 import lombok.Getter;
 
@@ -17,11 +19,10 @@ public class CoordinateServerProperty {
 
     @Override
     public String toString() {
-        String hiddenPassword = this.password.replaceFirst(".{2}", "**");
         return "CoordinateServerProperty{" +
                 "address='" + address + '\'' +
                 ", user='" + user + '\'' +
-                ", password='" + hiddenPassword + '\'' +
+                ", password='" + Utils.hidePassword(password) + '\'' +
                 ", userId='" + userId + '\'' +
                 '}';
     }

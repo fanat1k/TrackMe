@@ -81,4 +81,8 @@ public class Utils {
         }
         return stringBuilder.toString();
     }
+
+    public static String hidePassword(String password) {
+        return password.replaceFirst(".{2}", "**");
+    }
 }
