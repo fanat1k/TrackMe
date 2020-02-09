@@ -23,7 +23,7 @@ public class Utils {
     public static final String PARAM_COORDINATE_SERVER = "server";
     public static final String PARAM_USER = "user";
     public static final String PARAM_PASSWORD = "password";
-    public static final String PARAM_USER_ID = "login";
+    public static final String PARAM_USER_ID = "user_id";
     public static final String START_TIME = "start_time";
     public static final String STOP_TIME = "stop_time";
     public static final String PARAM_BATTERY_LEVEL = "battery_level";
