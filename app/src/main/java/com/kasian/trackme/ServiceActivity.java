@@ -9,7 +9,6 @@ import android.content.ServiceConnection;
 import android.os.BatteryManager;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
-import android.util.Log;
 
 import com.kasian.trackme.coordinate.CoordinateServerInfoHolder;
 import com.kasian.trackme.data.BatteryInfo;
@@ -19,6 +18,7 @@ import com.kasian.trackme.property.CoordinateServerInfoManagerImpl;
 import com.kasian.trackme.property.Properties;
 import com.kasian.trackme.service.GPSTrackerService;
 
+import org.apache.log4j.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -29,21 +29,21 @@ public class ServiceActivity extends Activity {
     private GPSTrackerService mService;
     private ServiceConnection mConnection;
     private static boolean mBound = false;
-
-    private static final String TAG = "TrackMe:ServiceActivity";
+    private static final Logger LOG = ALogger.getLogger(ServiceActivity.class);
 
     @Override
     protected void onStart() {
         super.onStart();
-        Log.i(TAG,"onStart");
+        LOG.info("onStart");
 
         // Coordinate server, user, password
         String server = getIntent().getStringExtra(Utils.PARAM_COORDINATE_SERVER);
         String user = getIntent().getStringExtra(Utils.PARAM_USER);
         String password = getIntent().getStringExtra(Utils.PARAM_PASSWORD);
+        String userId = getIntent().getStringExtra(Utils.PARAM_USER_ID);
 
-        if (server != null && user != null && password != null) {
-            setCoordinateServerInfo(server, user, password);
+        if (server != null && user != null && password != null && userId != null) {
+            setCoordinateServerInfo(server, user, password, userId);
             finish();
         }
 
@@ -60,16 +60,22 @@ public class ServiceActivity extends Activity {
         }
 
         // Battary level info
-        String shouldGetBatteryLevel = getIntent().getStringExtra(Utils.PARAM_BATTERY_LEVEL);
-        if (shouldGetBatteryLevel != null) {
+        if (getIntent().getStringExtra(Utils.PARAM_BATTERY_LEVEL) != null) {
             getAndSendBackBatteryInfo();
+            finish();
+        }
+
+        // Last logs
+        String logs = getIntent().getStringExtra(Utils.PARAM_LOGS);
+        if (logs != null) {
+            getAndSendBackLogs(getIntent().getStringExtra(Utils.PARAM_LOG_LINES));
             finish();
         }
 
         mConnection = new ServiceConnection() {
             @Override
             public void onServiceConnected(ComponentName className, IBinder service) {
-                Log.i(TAG, "onServiceConnected");
+                LOG.info("onServiceConnected");
                 GPSTrackerService.LocationServiceBinder binder = (GPSTrackerService.LocationServiceBinder) service;
                 mService = binder.getService();
                 mBound = true;
@@ -94,20 +100,21 @@ public class ServiceActivity extends Activity {
     @Override
     protected void onStop() {
         super.onStop();
-        Log.i(TAG, "onStop");
+        LOG.info("onStop");
         if (mBound) {
             unbindService(mConnection);
             mBound = false;
         }
     }
 
-    private void setCoordinateServerInfo(String server, String user, String password) {
-        Log.i(TAG, "setCoordinateServerInfo:server=" + server + ";user=" + user);
+    private void setCoordinateServerInfo(String server, String user, String password, String userId) {
+        LOG.info("setCoordinateServerInfo:server=" + server + ";user=" + user + ";userId=" + userId);
 
         CoordinateServerProperty coordinateServerProperty = CoordinateServerProperty.builder()
                 .address(server)
                 .user(user)
                 .password(password)
+                .userId(userId)
                 .build();
         CoordinateServerInfoHolder.getInstance().setProperty(coordinateServerProperty);
         new CoordinateServerInfoManagerImpl(getApplicationContext()).setCoordinateServerProperty(coordinateServerProperty);
@@ -119,7 +126,7 @@ public class ServiceActivity extends Activity {
 
     private void setTime(String time, boolean isStartTime) {
         String kindOfTime = isStartTime ? "start_time" : "stop_time";
-        Log.i(TAG, "set " + kindOfTime + "=" + time);
+        LOG.info("set " + kindOfTime + "=" + time);
         LocalTime localTime = Utils.getLocalTimeFromHHMM(time);
         if (isStartTime) {
             Properties.startTrackingHour = localTime.getHour();
@@ -148,7 +155,7 @@ public class ServiceActivity extends Activity {
                 .coordinateCacheSize(coordinateCacheSize)
                 .coordinateServerInfo(coordinateServerInfo)
                 .build();
-        Log.i(TAG, "getAndSendBackHealthcheck=" + healthCheck);
+        LOG.info("getAndSendBackHealthcheck=" + healthCheck);
 
         Intent returnIntent = new Intent();
         String healthCheckString = getJson(healthCheck).toString()
@@ -177,14 +184,14 @@ public class ServiceActivity extends Activity {
                     .put("coordinateCacheSize", healthCheck.getCoordinateCacheSize())
                     .put("coordinateServerInfo", coordinateServerInfoJson);
         } catch (JSONException e) {
-            Log.e(TAG, "Can not create json object from healthcheck=" + healthCheck);
+            LOG.error("Can not create json object from healthcheck=" + healthCheck);
         }
         return jsonObject;
     }
 
     private void getAndSendBackBatteryInfo() {
         BatteryInfo batteryInfo = getBatteryInfo();
-        Log.i(TAG, "getAndSendBackBatteryInfo=" + batteryInfo);
+        LOG.info("getAndSendBackBatteryInfo=" + batteryInfo);
 
         Intent returnIntent = new Intent();
         returnIntent.putExtra(Utils.PARAM_BATTERY_LEVEL, String.valueOf(batteryInfo.getBatteryLevel()));
@@ -206,10 +213,23 @@ public class ServiceActivity extends Activity {
 
             batteryInfo.setBatteryLevel(level);
             batteryInfo.setCharging(isCharging);
-            Log.i(TAG, "batteryInfo=" + batteryInfo);
+            LOG.info("batteryInfo=" + batteryInfo);
         } else {
-            Log.e(TAG, "Can not get battery info");
+            LOG.error("Can not get battery info");
         }
         return batteryInfo;
     }
+
+    private void getAndSendBackLogs(String numLines) {
+        Integer lines = numLines == null ? null : Integer.valueOf(numLines);
+        if (lines == null) {
+            lines = Integer.MAX_VALUE;
+        }
+        String logs = Utils.arrayToString(Utils.readFile(Utils.LOG_FILE_NAME, lines));
+
+        Intent returnIntent = new Intent();
+        returnIntent.putExtra(Utils.PARAM_LOGS, logs);
+        setResult(Activity.RESULT_OK, returnIntent);
+    }
+
 }

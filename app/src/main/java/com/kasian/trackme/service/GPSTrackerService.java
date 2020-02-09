@@ -16,9 +16,9 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.StrictMode;
 import android.support.annotation.Nullable;
-import android.util.Log;
 import android.widget.Toast;
 
+import com.kasian.trackme.ALogger;
 import com.kasian.trackme.R;
 import com.kasian.trackme.Utils;
 import com.kasian.trackme.coordinate.CoordinateHolder;
@@ -30,6 +30,7 @@ import com.kasian.trackme.property.CoordinateServerInfoManager;
 import com.kasian.trackme.property.CoordinateServerInfoManagerImpl;
 import com.kasian.trackme.property.Properties;
 
+import org.apache.log4j.Logger;
 import org.json.JSONException;
 
 import java.io.IOException;
@@ -54,10 +55,10 @@ public class GPSTrackerService extends IntentService {
     private static AtomicBoolean locationUpdateStatus = new AtomicBoolean(false);
     private static LocalDateTime locationLastUpdateTime;
     private static LocalDateTime locationLastSendTime;
-    private static final String TAG = "TrackMe:GPSTrackerService";
+    private static final Logger LOG = ALogger.getLogger(GPSTrackerService.class);
 
     public GPSTrackerService() {
-        super(TAG);
+        super("GPSTrackerService");
     }
 
     @Override
@@ -85,14 +86,14 @@ public class GPSTrackerService extends IntentService {
         coordinateServerInfoManager = new CoordinateServerInfoManagerImpl(getApplicationContext());
         CoordinateServerProperty coordinateServerProperty = coordinateServerInfoManager.getCoordinateServerProperty();
         if (coordinateServerProperty != null) {
-            Log.i(TAG, "Found coordinateServerProperty=" + coordinateServerProperty);
+            LOG.info("Found coordinateServerProperty=" + coordinateServerProperty);
             CoordinateServerInfoHolder.getInstance().setProperty(coordinateServerProperty);
         }
     }
 
     @Override
     protected void onHandleIntent(@Nullable Intent intent) {
-        Log.i(TAG, "onHandleIntent");
+        LOG.info("onHandleIntent");
         startLivenessRequests();
     }
 
@@ -148,10 +149,10 @@ public class GPSTrackerService extends IntentService {
         // or other notification behaviors after this
         NotificationManager notificationManager = getSystemService(NotificationManager.class);
         if (notificationManager == null) {
-            Log.e(TAG, "Can not create Notification Channel: notificationManager is null");
+            LOG.error("Can not create Notification Channel: notificationManager is null");
         } else {
             notificationManager.createNotificationChannel(channel);
-            Log.i(TAG, "createNotificationChannel:" + channel);
+            LOG.info("createNotificationChannel:" + channel);
         }
     }
 
@@ -162,7 +163,7 @@ public class GPSTrackerService extends IntentService {
     }
 
     private void scheduleLocationUpdates() {
-        Log.i(TAG, "scheduleLocationUpdates");
+        LOG.info("scheduleLocationUpdates");
 
         final Runnable updateLocationChecker = new Runnable() {
             @Override
@@ -180,7 +181,7 @@ public class GPSTrackerService extends IntentService {
                         stopLocationUpdates();
                     }
                 }
-                Log.i(TAG, "service running status - " + locationUpdateStatus.get());
+                LOG.info("service running status - " + locationUpdateStatus.get());
             }
         };
 
@@ -189,7 +190,7 @@ public class GPSTrackerService extends IntentService {
     }
 
     private void initLocationUpdates() {
-        Log.i(TAG, "initLocationUpdates");
+        LOG.info("initLocationUpdates");
 
         locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
 
@@ -197,7 +198,7 @@ public class GPSTrackerService extends IntentService {
 
             public void onLocationChanged(Location location) {
                 // Called when a new location is found by the network location provider.
-                Log.i(TAG, "Location changed:" + location);
+                LOG.info("Location changed:" + location);
                 locationLastUpdateTime = LocalDateTime.now();
                 sendOrCacheCoordinates(new Coordinate(location.getLatitude(), location.getLongitude()));
             }
@@ -213,19 +214,19 @@ public class GPSTrackerService extends IntentService {
             }
         };
 
-        Log.w(TAG, "isNetworkEnabled=" + locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER));
-        Log.w(TAG, "isGPSEnabled=" + locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER));
+        LOG.warn("isNetworkEnabled=" + locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER));
+        LOG.warn("isGPSEnabled=" + locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER));
     }
 
     private void sendOrCacheCoordinates(Coordinate coordinate) {
-        if (CoordinateServerInfoHolder.getInstance().isReady()) {
+        if (CoordinateServerInfoHolder.getInstance().isComplete()) {
             if (sendCoordinate(Collections.singletonList(coordinate))) {
                 // Send all coordinates from cache (just in case if it's not empty)
                 sendCoordinatesFromCache();
                 return;
             }
         } else {
-            Log.w(TAG, "Server for uploading coordinates is not defined yet");
+            LOG.warn("Server for uploading coordinates is not defined yet");
         }
         // Save coordinate to the Cache if coordiante server is not ready yet or sending failed
         cacheCoordinate(coordinate);
@@ -235,21 +236,21 @@ public class GPSTrackerService extends IntentService {
         try {
             int responseCode = coordinateSender.send(coordinates);
             if (responseCode == Utils.HTTP_OK) {
-                Log.i(TAG, "New coordinates have been sent to server:" + coordinates);
+                LOG.info("New coordinates have been sent to server:" + coordinates);
                 locationLastSendTime = LocalDateTime.now();
                 return true;
             } else {
-                Log.e(TAG, "Can not send coordinates, responseCode=" + responseCode);
+                LOG.error("Can not send coordinates, responseCode=" + responseCode);
             }
         } catch (IOException | JSONException e) {
-            Log.e(TAG, "Can not send coordinates due to error", e);
+            LOG.error("Can not send coordinates due to error", e);
         }
         return false;
     }
 
     private void sendCoordinatesFromCache() {
         while (!coordinateHolder.isEmpty()) {
-            Log.i(TAG, "Send coordinates from the Cache, size=" + coordinateHolder.size());
+            LOG.info("Send coordinates from the Cache, size=" + coordinateHolder.size());
             synchronized (coordinateHolder) {
                 // Get coordinate from the queue, but do no remove from queue
                 if (sendCoordinate(coordinateHolder.getAll())) {
@@ -261,7 +262,7 @@ public class GPSTrackerService extends IntentService {
     }
 
     private synchronized void startLocationUpdates() {
-        Log.i(TAG, "Start requesting location updates.");
+        LOG.info("Start requesting location updates.");
         try {
             // To resolve exception: java.lang.RuntimeException: Can't create handler inside thread that has not called Looper.prepare()
             HandlerThread handlerThread = new HandlerThread("GPSTrackerServiceHandlerThread");
@@ -273,22 +274,22 @@ public class GPSTrackerService extends IntentService {
                     locationListener, looper);
 
             locationUpdateStatus.set(true);
-            Log.i(TAG, "Location updates has been started successfully");
+            LOG.info("Location updates has been started successfully");
         } catch (SecurityException e) {
-            Log.e(TAG, "Location permissions are turned off. Please turn it on and restart the application");
+            LOG.error("Location permissions are turned off. Please turn it on and restart the application");
         } catch (Exception e) {
-            Log.e(TAG, "Can not request location updates", e);
+            LOG.error("Can not request location updates", e);
         }
     }
 
     private synchronized void stopLocationUpdates() {
-        Log.i(TAG, "Stop requesting location updates.");
+        LOG.info("Stop requesting location updates.");
         locationManager.removeUpdates(locationListener);
         locationUpdateStatus.set(false);
     }
 
     private void cacheCoordinate(Coordinate coordinate) {
-        Log.i(TAG, "Save new coordinate to cache:" + coordinate);
+        LOG.info("Save new coordinate to cache:" + coordinate);
         coordinateHolder.add(coordinate);
     }
 
@@ -306,7 +307,7 @@ public class GPSTrackerService extends IntentService {
                 new Runnable() {
                     @Override
                     public void run() {
-                        Log.i(TAG, "GPSTrackerPingThread is alive");
+                        LOG.info("GPSTrackerPingThread is alive");
                         sendOrCacheCoordinates(new Coordinate(0, 0));
                     }
                 }, 0, Properties.checkLivenessPeriodMin, TimeUnit.MINUTES);
@@ -315,7 +316,7 @@ public class GPSTrackerService extends IntentService {
     private class CoordinateHolderCleanerThread implements Runnable {
         @Override
         public void run() {
-            Log.i(TAG, "Start coordinate cleaner");
+            LOG.info("Start coordinate cleaner");
             long currentTime = System.currentTimeMillis();
             List<Coordinate> coordiantesToRemove = new ArrayList<>();
 
@@ -326,10 +327,10 @@ public class GPSTrackerService extends IntentService {
                     }
                 }
                 if (coordiantesToRemove.isEmpty()) {
-                    Log.i(TAG, "Nothing to remove for now");
+                    LOG.info("Nothing to remove for now");
                 } else {
                     coordinateHolder.removeAll(coordiantesToRemove);
-                    Log.w(TAG, "Remove coordinates from queue due to timeout:" + coordiantesToRemove);
+                    LOG.warn("Remove coordinates from queue due to timeout:" + coordiantesToRemove);
                 }
             }
         }

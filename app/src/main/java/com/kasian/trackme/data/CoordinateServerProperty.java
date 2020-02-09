@@ -9,16 +9,20 @@ public class CoordinateServerProperty {
     private String address;
     private String user;
     private String password;
+    private String userId;
 
-    public boolean isPropertyValid() {
-        return address != null && user != null && password != null;
+    public boolean isComplete() {
+        return address != null && user != null && password != null && userId != null;
     }
 
     @Override
     public String toString() {
+        String hiddenPassword = this.password.replaceFirst(".{2}", "*");
         return "CoordinateServerProperty{" +
                 "address='" + address + '\'' +
                 ", user='" + user + '\'' +
+                ", password='" + hiddenPassword + '\'' +
+                ", userId='" + userId + '\'' +
                 '}';
     }
 }

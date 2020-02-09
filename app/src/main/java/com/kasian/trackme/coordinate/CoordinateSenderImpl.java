@@ -1,11 +1,12 @@
 package com.kasian.trackme.coordinate;
 
 import android.support.annotation.NonNull;
-import android.util.Log;
 
+import com.kasian.trackme.ALogger;
 import com.kasian.trackme.Utils;
 import com.kasian.trackme.data.Coordinate;
 
+import org.apache.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -23,7 +24,7 @@ import java.util.List;
 public class CoordinateSenderImpl implements CoordinateSender {
     private static final int CONNECT_TIMEOUT_MILLIS = 10000;
     private static final int READ_TIMEOUT_MILLIS = 10000;
-    private static final String TAG = "TrackMe:CoordinateSenderImpl";
+    private static final Logger LOG = ALogger.getLogger(CoordinateSenderImpl.class);
 
     @Override
     public int send(List<Coordinate> coordinates) throws IOException, JSONException {
@@ -32,7 +33,7 @@ public class CoordinateSenderImpl implements CoordinateSender {
         setHeaders(con);
 
         JSONArray coordinatesJson = getJson(coordinates);
-        Log.i(TAG, "send JSON:" + coordinatesJson.toString());
+        LOG.info("send JSON:" + coordinatesJson.toString());
 
         Writer os = new OutputStreamWriter(con.getOutputStream());
         os.write(coordinatesJson.toString());
@@ -40,9 +41,9 @@ public class CoordinateSenderImpl implements CoordinateSender {
         os.close();
 
         int responseCode = con.getResponseCode();
-        Log.i(TAG, "responseCode=" + responseCode);
+        LOG.info("responseCode=" + responseCode);
         if (responseCode != Utils.HTTP_OK) {
-            Log.i(TAG, "responseMessage:" + con.getResponseMessage());
+            LOG.info("responseMessage:" + con.getResponseMessage());
         }
         con.disconnect();
 

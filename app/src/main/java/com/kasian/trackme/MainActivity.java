@@ -17,27 +17,29 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.karumi.dexter.Dexter;
+import com.karumi.dexter.MultiplePermissionsReport;
 import com.karumi.dexter.PermissionToken;
 import com.karumi.dexter.listener.PermissionDeniedResponse;
-import com.karumi.dexter.listener.PermissionGrantedResponse;
 import com.karumi.dexter.listener.PermissionRequest;
-import com.karumi.dexter.listener.single.PermissionListener;
+import com.karumi.dexter.listener.multi.MultiplePermissionsListener;
 import com.kasian.trackme.property.Properties;
 import com.kasian.trackme.service.GPSTrackerService;
 
-public class MainActivity extends AppCompatActivity {
-    private static final String TAG = "TrackMe:MainActivity";
+import org.apache.log4j.Logger;
 
+import java.util.ArrayList;
+import java.util.List;
+
+public class MainActivity extends AppCompatActivity {
     private GPSTrackerService gpsTrackerService;
     private ServiceConnection serviceConnection;
+    private static final String TAG = "TrackMe:MainActivity";
+    private Logger LOG;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        Properties.init(this);
-        Log.i(TAG, Properties.print());
 
         if (isGpsEnabled()) {
             checkPermissionsAndStartGpsService();
@@ -45,29 +47,29 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startGpsTrackerService() {
-        Log.i(TAG, "startGpsTrackerService");
+        LOG.info("startGpsTrackerService");
         Intent service = new Intent(this, GPSTrackerService.class);
 
         if (!isServiceRunning(GPSTrackerService.class)) {
             startForegroundService(service);
-            Log.i(TAG, "Started foreground service.");
+            LOG.info("Started foreground service.");
 
             //To make gps location work in background
             startServiceConnector();
             this.getApplication().bindService(service, serviceConnection, Context.BIND_AUTO_CREATE);
-            Log.i(TAG, "Service is binded (dependency between app and service)");
+            LOG.info("Service is binded (dependency between app and service)");
         }
     }
 
     private void startServiceConnector() {
-        Log.i(TAG, "startServiceConnector");
+        LOG.info("startServiceConnector");
         serviceConnection = new ServiceConnection() {
             @Override
             public void onServiceConnected(ComponentName className, IBinder service) {
                 String name = className.getClassName();
                 if (name.endsWith("GPSTrackerService")) {
                     gpsTrackerService = ((GPSTrackerService.LocationServiceBinder) service).getService();
-                    Log.i(TAG, "gpsTrackerService initiated successfully.");
+                    LOG.info("gpsTrackerService initiated successfully.");
                 }
             }
 
@@ -86,51 +88,76 @@ public class MainActivity extends AppCompatActivity {
         for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
             if (serviceClass.getName().equals(service.service.getClassName())) {
                 String message = "TrackMe is already running now.";
-                Log.w(TAG, message);
+                LOG.warn(message);
                 Toast.makeText(getApplicationContext(), message, Toast.LENGTH_LONG).show();
                 return true;
             }
         }
         String message = "TrackMe is not running now. Starting...";
-        Log.i(TAG, message);
+        LOG.info(message);
         Toast.makeText(getApplicationContext(), message, Toast.LENGTH_LONG).show();
         return false;
     }
 
     private void checkPermissionsAndStartGpsService() {
         Log.i(TAG, "checkPermissionsAndStartGpsService");
-        // TODO: 27.12.2019 is it correct to ckeck ACCESS_FINE_LOCATION only?
-        Dexter.withActivity(this)
-                .withPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-                .withListener(new PermissionListener() {
-                    @Override
-                    public void onPermissionGranted(PermissionGrantedResponse response) {
-                        Log.i(TAG, "Location permissions are enabled.");
-                        startGpsTrackerService();
-                        finishMainActivity();
-                    }
 
+        Dexter.withActivity(this)
+                .withPermissions(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                )
+                .withListener(new MultiplePermissionsListener() {
                     @Override
-                    public void onPermissionDenied(PermissionDeniedResponse response) {
-                        Log.w(TAG, "Location permissions are disabled.");
-                        if (response.isPermanentlyDenied()) {
-                            Toast.makeText(getApplicationContext(),
-                                    "Location permissions are disabled. Please turn it on.",
-                                    Toast.LENGTH_LONG).show();
+                    public void onPermissionsChecked(MultiplePermissionsReport report) {
+                        if (report.areAllPermissionsGranted()) {
+                            Log.i(TAG, "All permissions are granted.");
+                            initLogger();
+                            initProperties();
+                            startGpsTrackerService();
+                            finishMainActivity();
+                        }
+
+                        // check if any permission is denied
+                        List<PermissionDeniedResponse> deniedPermissionResponses = report.getDeniedPermissionResponses();
+                        if (deniedPermissionResponses.size() > 0) {
+                            List<String> deniedPermissions = new ArrayList<>();
+                            for (PermissionDeniedResponse deniedPermissionResponse : deniedPermissionResponses) {
+                                deniedPermissions.add(deniedPermissionResponse.getPermissionName());
+                            }
+
+                            showAlertAndExit("Permissions denied",
+                                    "Please grant the following permissions and restart application: " + deniedPermissions);
                         }
                     }
 
                     @Override
-                    public void onPermissionRationaleShouldBeShown(PermissionRequest permission, PermissionToken token) {
+                    public void onPermissionRationaleShouldBeShown(List<PermissionRequest> permissions, PermissionToken token) {
                         token.continuePermissionRequest();
                     }
-                }).check();
+                })
+                .onSameThread()
+                .check();
+    }
+
+    private void showAlertAndExit(String title, String message) {
+        new AlertDialog.Builder(MainActivity.this)
+                .setTitle(title)
+                .setMessage(message)
+                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        finishMainActivity();
+                    }
+                })
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .show();
     }
 
     private boolean isGpsEnabled() {
         LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         if (lm == null) {
-            Log.e(TAG, "LocationManager is null. Can't check if GPS is enabled.");
+            LOG.error("LocationManager is null. Can't check if GPS is enabled.");
             return true;
         }
 
@@ -157,9 +184,18 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void initProperties() {
+        Properties.init(this);
+        LOG.info(Properties.print());
+    }
+
+    private void initLogger() {
+        LOG = ALogger.getLogger(MainActivity.class);
+    }
+
     // Finish main activity and let service working in background
     private void finishMainActivity() {
-        Log.i(TAG, "Finish main activity.");
+        Log.i(TAG,"Finish main activity.");
         finish();
     }
 }
