@@ -196,7 +196,11 @@ public class GPSTrackerService extends IntentService {
                 // Called when a new location is found by the network location provider.
                 LOG.info("Location changed:" + location);
                 locationLastUpdateTime = LocalDateTime.now();
-                sendOrCacheCoordinates(new Coordinate(location.getLatitude(), location.getLongitude()));
+                sendOrCacheCoordinates(new Coordinate(
+                        CoordinateServerInfoHolder.getInstance().getUserId(),
+                        location.getLatitude(),
+                        location.getLongitude())
+                );
             }
 
             @Override
@@ -304,7 +308,7 @@ public class GPSTrackerService extends IntentService {
                     @Override
                     public void run() {
                         LOG.info("GPSTrackerPingThread is alive");
-                        sendOrCacheCoordinates(new Coordinate(0, 0));
+                        sendOrCacheCoordinates(new Coordinate(Utils.FAKE_USER, 0, 0));
                     }
                 }, 0, Properties.checkLivenessPeriodMin, TimeUnit.MINUTES);
     }

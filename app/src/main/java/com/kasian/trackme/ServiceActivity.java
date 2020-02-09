@@ -178,7 +178,7 @@ public class ServiceActivity extends Activity {
             coordinateServerInfoJson.put("password", Utils.hidePassword(coordinateServerInfo.getPassword()));
             coordinateServerInfoJson.put("userId(login)", coordinateServerInfo.getUserId());
             return jsonObject
-                    .put("date", Utils.getDateFormatted(LocalDateTime.now()))
+                    .put(Utils.PARAM_DATE, Utils.getDateFormatted(LocalDateTime.now()))
                     .put("status", healthCheck.getStatus())
                     .put("locationLastUpdateTime", healthCheck.getLocationLastUpdateTime())
                     .put("locationLastSendTime", healthCheck.getLocationLastSendTime())

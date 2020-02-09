@@ -75,7 +75,8 @@ public class CoordinateSenderImpl implements CoordinateSender {
 
         for (Coordinate coordinate : coordinates) {
             jsonArray.put(new JSONObject()
-                    .put("date", coordinate.getDateFormatted())
+                    .put(Utils.PARAM_DATE, coordinate.getDateFormatted())
+                    .put(Utils.PARAM_USER_ID, coordinate.getUserId())
                     .put("latitude", coordinate.getLatitude())
                     .put("longitude", coordinate.getLongitude()));
         }

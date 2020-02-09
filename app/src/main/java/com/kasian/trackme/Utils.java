@@ -24,6 +24,7 @@ public class Utils {
     public static final String PARAM_USER = "user";
     public static final String PARAM_PASSWORD = "password";
     public static final String PARAM_USER_ID = "user_id";
+    public static final String PARAM_DATE = "date";
     public static final String START_TIME = "start_time";
     public static final String STOP_TIME = "stop_time";
     public static final String PARAM_BATTERY_LEVEL = "battery_level";
@@ -33,6 +34,7 @@ public class Utils {
     public static final String PARAM_BATTERY_IS_CHARGING = "battery_is_charging";
     public static final String NOTIFICATION_CHANNEL_ID = "track_me_channel_id";
     public static final int NOTIFICATION_CHANNEL_ID_INT = 1912281636;
+    public static final String FAKE_USER = "fakeUser";
     public static final String LOG_FILE_NAME = Environment.getExternalStorageDirectory().toString() + File.separator + "trackme.log";
     private static final Logger LOG = ALogger.getLogger(Utils.class);
 
