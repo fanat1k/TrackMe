@@ -12,8 +12,6 @@ public class HealthCheck {
     private int coordinateCacheSize;
     private CoordinateServerProperty coordinateServerInfo;
 
-
-
     public enum Status {
         ON(true),
         OFF(false);
@@ -32,5 +30,16 @@ public class HealthCheck {
             }
             throw new IllegalArgumentException("Bad status value: " + status);
         }
+    }
+
+    @Override
+    public String toString() {
+        return "HealthCheck{" +
+                "status=" + status +
+                ", locationLastUpdateTime='" + locationLastUpdateTime + '\'' +
+                ", locationLastSendTime='" + locationLastSendTime + '\'' +
+                ", coordinateCacheSize=" + coordinateCacheSize +
+                ", coordinateServerInfo=" + coordinateServerInfo +
+                '}';
     }
 }

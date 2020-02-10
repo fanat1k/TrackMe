@@ -162,6 +162,7 @@ public class ServiceActivity extends Activity {
                 .replace("\\/", "/")
                 .replace("\\\\", "\\");
 
+
         returnIntent.putExtra(Utils.PARAM_HEALTHCHECK, healthCheckString);
         setResult(Activity.RESULT_OK, returnIntent);
     }
@@ -173,10 +174,12 @@ public class ServiceActivity extends Activity {
         try {
             CoordinateServerProperty coordinateServerInfo = healthCheck.getCoordinateServerInfo();
             JSONObject coordinateServerInfoJson = new JSONObject();
-            coordinateServerInfoJson.put("address", coordinateServerInfo.getAddress());
-            coordinateServerInfoJson.put("user", coordinateServerInfo.getUser());
-            coordinateServerInfoJson.put("password", Utils.hidePassword(coordinateServerInfo.getPassword()));
-            coordinateServerInfoJson.put("userId(login)", coordinateServerInfo.getUserId());
+            if (coordinateServerInfo != null) {
+                coordinateServerInfoJson.put("address", coordinateServerInfo.getAddress());
+                coordinateServerInfoJson.put("user", coordinateServerInfo.getUser());
+                coordinateServerInfoJson.put("password", Utils.hidePassword(coordinateServerInfo.getPassword()));
+                coordinateServerInfoJson.put("userId(login)", coordinateServerInfo.getUserId());
+            }
             return jsonObject
                     .put(Utils.PARAM_DATE, Utils.getDateFormatted(LocalDateTime.now()))
                     .put("status", healthCheck.getStatus())

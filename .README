@@ -14,13 +14,32 @@ intent.putExtra("param2", "value2");
 // send request to activity
 startActivityForResult(intent, 1);
 
-# Healthcheck. Returns status as string in format "on(off);last_time_get_coordinate", e.g.: "on;31.12.2019 16:59:45"
+# Healthcheck. Returns status in JSON
 intent.putExtra("healthcheck");
+example of response:
+{
+    "date": "02.02.2020 22:01:54",
+    "status": "OFF",
+    "coordinateCacheSize": 1,
+    "locationLastUpdateTime": "10.02.2020 00:18:57",
+    "locationLastSendTime": "10.02.2020 00:18:57",
+    "coordinateServerInfo": {
+        "address": "http://62.149.14.54:82/tdsvr/hs/COE/gps",
+        "user": "gps",
+        "password": "2foOa43Z",
+        "userId": "login_to_1C"
+    }
+}
 
-# To pass server/login/password:
+# To pass server/login/password/userId:
 intent.putExtra("server", "http://62.149.14.54:82/tdsvr/hs/COE/gps");
 intent.putExtra("user", "gps");
 intent.putExtra("password", "bla-bla");
+intent.putExtra("userId", "login_to_1C");
+
+All parameters should be passed together. Until you send them TrackMe will not send coordinates
+to a server. Once you send parameter they are saved to local devise so that TrackMe will pick them up
+after restarting.
 
 
 # By default coordinates are requested from 7AM to 9PM.
@@ -52,12 +71,14 @@ protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 # Once location is changed TrackMe sends to server coordinates in Json format (array of coordinates):
 [
     {
-        "date": "31.12.2019 22:36", // in format "dd.MM.yyyy HH:mm:ss"
+        "date": "31.12.2019 22:36", // in format "dd.MM.yyyy HH:mm:ss",
+        "userId": "login_to_1C",
         "latitude": 100,
         "longitude": 200
     },
     {
-        "date": "31.12.2019 22:38", // in format "dd.MM.yyyy HH:mm:ss"
+        "date": "31.12.2019 22:38", // in format "dd.MM.yyyy HH:mm:ss",
+        "userId": "login_to_1C",
         "latitude": 101,
         "longitude": 201
     },
